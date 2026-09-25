@@ -1,0 +1,144 @@
+ERROR - 2026-09-25 15:16:59 --> Error connecting to the database: mysqli_sql_exception: Access denied for user ''@'localhost' in /home/ubuntu/Projet_CB_LegalTech/system/Database/MySQLi/Connection.php:201
+Stack trace:
+#0 /home/ubuntu/Projet_CB_LegalTech/system/Database/MySQLi/Connection.php(201): mysqli->real_connect()
+#1 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(555): CodeIgniter\Database\MySQLi\Connection->connect()
+#2 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(795): CodeIgniter\Database\BaseConnection->initialize()
+#3 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(1706): CodeIgniter\Database\BaseConnection->query()
+#4 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(1726): CodeIgniter\Database\BaseConnection->listTables()
+#5 /home/ubuntu/Projet_CB_LegalTech/system/Database/MigrationRunner.php(821): CodeIgniter\Database\BaseConnection->tableExists()
+#6 /home/ubuntu/Projet_CB_LegalTech/system/Database/MigrationRunner.php(173): CodeIgniter\Database\MigrationRunner->ensureTable()
+#7 /home/ubuntu/Projet_CB_LegalTech/system/Commands/Database/Migrate.php(89): CodeIgniter\Database\MigrationRunner->latest()
+#8 /home/ubuntu/Projet_CB_LegalTech/system/CLI/SignalTrait.php(245): CodeIgniter\Commands\Database\Migrate::CodeIgniter\Commands\Database\{closure}()
+#9 /home/ubuntu/Projet_CB_LegalTech/system/Commands/Database/Migrate.php(88): CodeIgniter\Commands\Database\Migrate->withSignalsBlocked()
+#10 /home/ubuntu/Projet_CB_LegalTech/system/CLI/Commands.php(74): CodeIgniter\Commands\Database\Migrate->run()
+#11 /home/ubuntu/Projet_CB_LegalTech/system/CLI/Console.php(47): CodeIgniter\CLI\Commands->run()
+#12 /home/ubuntu/Projet_CB_LegalTech/system/Boot.php(442): CodeIgniter\CLI\Console->run()
+#13 /home/ubuntu/Projet_CB_LegalTech/system/Boot.php(166): CodeIgniter\Boot::runCommand()
+#14 /home/ubuntu/Projet_CB_LegalTech/spark(87): CodeIgniter\Boot::bootSpark()
+#15 {main}
+
+Next CodeIgniter\Database\Exceptions\DatabaseException: Access denied for user ''@'localhost' in /home/ubuntu/Projet_CB_LegalTech/system/Database/MySQLi/Connection.php:231
+Stack trace:
+#0 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(555): CodeIgniter\Database\MySQLi\Connection->connect()
+#1 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(795): CodeIgniter\Database\BaseConnection->initialize()
+#2 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(1706): CodeIgniter\Database\BaseConnection->query()
+#3 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(1726): CodeIgniter\Database\BaseConnection->listTables()
+#4 /home/ubuntu/Projet_CB_LegalTech/system/Database/MigrationRunner.php(821): CodeIgniter\Database\BaseConnection->tableExists()
+#5 /home/ubuntu/Projet_CB_LegalTech/system/Database/MigrationRunner.php(173): CodeIgniter\Database\MigrationRunner->ensureTable()
+#6 /home/ubuntu/Projet_CB_LegalTech/system/Commands/Database/Migrate.php(89): CodeIgniter\Database\MigrationRunner->latest()
+#7 /home/ubuntu/Projet_CB_LegalTech/system/CLI/SignalTrait.php(245): CodeIgniter\Commands\Database\Migrate::CodeIgniter\Commands\Database\{closure}()
+#8 /home/ubuntu/Projet_CB_LegalTech/system/Commands/Database/Migrate.php(88): CodeIgniter\Commands\Database\Migrate->withSignalsBlocked()
+#9 /home/ubuntu/Projet_CB_LegalTech/system/CLI/Commands.php(74): CodeIgniter\Commands\Database\Migrate->run()
+#10 /home/ubuntu/Projet_CB_LegalTech/system/CLI/Console.php(47): CodeIgniter\CLI\Commands->run()
+#11 /home/ubuntu/Projet_CB_LegalTech/system/Boot.php(442): CodeIgniter\CLI\Console->run()
+#12 /home/ubuntu/Projet_CB_LegalTech/system/Boot.php(166): CodeIgniter\Boot::runCommand()
+#13 /home/ubuntu/Projet_CB_LegalTech/spark(87): CodeIgniter\Boot::bootSpark()
+#14 {main}
+ERROR - 2026-09-25 15:21:00 --> Error connecting to the database: mysqli_sql_exception: No such file or directory in /home/ubuntu/Projet_CB_LegalTech/system/Database/MySQLi/Connection.php:201
+Stack trace:
+#0 /home/ubuntu/Projet_CB_LegalTech/system/Database/MySQLi/Connection.php(201): mysqli->real_connect()
+#1 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(555): CodeIgniter\Database\MySQLi\Connection->connect()
+#2 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(795): CodeIgniter\Database\BaseConnection->initialize()
+#3 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(1706): CodeIgniter\Database\BaseConnection->query()
+#4 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(1726): CodeIgniter\Database\BaseConnection->listTables()
+#5 /home/ubuntu/Projet_CB_LegalTech/system/Database/MigrationRunner.php(821): CodeIgniter\Database\BaseConnection->tableExists()
+#6 /home/ubuntu/Projet_CB_LegalTech/system/Database/MigrationRunner.php(173): CodeIgniter\Database\MigrationRunner->ensureTable()
+#7 /home/ubuntu/Projet_CB_LegalTech/system/Commands/Database/Migrate.php(89): CodeIgniter\Database\MigrationRunner->latest()
+#8 /home/ubuntu/Projet_CB_LegalTech/system/CLI/SignalTrait.php(245): CodeIgniter\Commands\Database\Migrate::CodeIgniter\Commands\Database\{closure}()
+#9 /home/ubuntu/Projet_CB_LegalTech/system/Commands/Database/Migrate.php(88): CodeIgniter\Commands\Database\Migrate->withSignalsBlocked()
+#10 /home/ubuntu/Projet_CB_LegalTech/system/CLI/Commands.php(74): CodeIgniter\Commands\Database\Migrate->run()
+#11 /home/ubuntu/Projet_CB_LegalTech/system/CLI/Console.php(47): CodeIgniter\CLI\Commands->run()
+#12 /home/ubuntu/Projet_CB_LegalTech/system/Boot.php(442): CodeIgniter\CLI\Console->run()
+#13 /home/ubuntu/Projet_CB_LegalTech/system/Boot.php(166): CodeIgniter\Boot::runCommand()
+#14 /home/ubuntu/Projet_CB_LegalTech/spark(87): CodeIgniter\Boot::bootSpark()
+#15 {main}
+
+Next CodeIgniter\Database\Exceptions\DatabaseException: No such file or directory in /home/ubuntu/Projet_CB_LegalTech/system/Database/MySQLi/Connection.php:231
+Stack trace:
+#0 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(555): CodeIgniter\Database\MySQLi\Connection->connect()
+#1 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(795): CodeIgniter\Database\BaseConnection->initialize()
+#2 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(1706): CodeIgniter\Database\BaseConnection->query()
+#3 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(1726): CodeIgniter\Database\BaseConnection->listTables()
+#4 /home/ubuntu/Projet_CB_LegalTech/system/Database/MigrationRunner.php(821): CodeIgniter\Database\BaseConnection->tableExists()
+#5 /home/ubuntu/Projet_CB_LegalTech/system/Database/MigrationRunner.php(173): CodeIgniter\Database\MigrationRunner->ensureTable()
+#6 /home/ubuntu/Projet_CB_LegalTech/system/Commands/Database/Migrate.php(89): CodeIgniter\Database\MigrationRunner->latest()
+#7 /home/ubuntu/Projet_CB_LegalTech/system/CLI/SignalTrait.php(245): CodeIgniter\Commands\Database\Migrate::CodeIgniter\Commands\Database\{closure}()
+#8 /home/ubuntu/Projet_CB_LegalTech/system/Commands/Database/Migrate.php(88): CodeIgniter\Commands\Database\Migrate->withSignalsBlocked()
+#9 /home/ubuntu/Projet_CB_LegalTech/system/CLI/Commands.php(74): CodeIgniter\Commands\Database\Migrate->run()
+#10 /home/ubuntu/Projet_CB_LegalTech/system/CLI/Console.php(47): CodeIgniter\CLI\Commands->run()
+#11 /home/ubuntu/Projet_CB_LegalTech/system/Boot.php(442): CodeIgniter\CLI\Console->run()
+#12 /home/ubuntu/Projet_CB_LegalTech/system/Boot.php(166): CodeIgniter\Boot::runCommand()
+#13 /home/ubuntu/Projet_CB_LegalTech/spark(87): CodeIgniter\Boot::bootSpark()
+#14 {main}
+ERROR - 2026-09-25 15:22:34 --> Error connecting to the database: mysqli_sql_exception: Access denied for user 'root'@'localhost' (using password: YES) in /home/ubuntu/Projet_CB_LegalTech/system/Database/MySQLi/Connection.php:201
+Stack trace:
+#0 /home/ubuntu/Projet_CB_LegalTech/system/Database/MySQLi/Connection.php(201): mysqli->real_connect()
+#1 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(555): CodeIgniter\Database\MySQLi\Connection->connect()
+#2 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(795): CodeIgniter\Database\BaseConnection->initialize()
+#3 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(1706): CodeIgniter\Database\BaseConnection->query()
+#4 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(1726): CodeIgniter\Database\BaseConnection->listTables()
+#5 /home/ubuntu/Projet_CB_LegalTech/system/Database/MigrationRunner.php(821): CodeIgniter\Database\BaseConnection->tableExists()
+#6 /home/ubuntu/Projet_CB_LegalTech/system/Database/MigrationRunner.php(173): CodeIgniter\Database\MigrationRunner->ensureTable()
+#7 /home/ubuntu/Projet_CB_LegalTech/system/Commands/Database/Migrate.php(89): CodeIgniter\Database\MigrationRunner->latest()
+#8 /home/ubuntu/Projet_CB_LegalTech/system/CLI/SignalTrait.php(245): CodeIgniter\Commands\Database\Migrate::CodeIgniter\Commands\Database\{closure}()
+#9 /home/ubuntu/Projet_CB_LegalTech/system/Commands/Database/Migrate.php(88): CodeIgniter\Commands\Database\Migrate->withSignalsBlocked()
+#10 /home/ubuntu/Projet_CB_LegalTech/system/CLI/Commands.php(74): CodeIgniter\Commands\Database\Migrate->run()
+#11 /home/ubuntu/Projet_CB_LegalTech/system/CLI/Console.php(47): CodeIgniter\CLI\Commands->run()
+#12 /home/ubuntu/Projet_CB_LegalTech/system/Boot.php(442): CodeIgniter\CLI\Console->run()
+#13 /home/ubuntu/Projet_CB_LegalTech/system/Boot.php(166): CodeIgniter\Boot::runCommand()
+#14 /home/ubuntu/Projet_CB_LegalTech/spark(87): CodeIgniter\Boot::bootSpark()
+#15 {main}
+
+Next CodeIgniter\Database\Exceptions\DatabaseException: Access denied for user '****'@'localhost' (using password: YES) in /home/ubuntu/Projet_CB_LegalTech/system/Database/MySQLi/Connection.php:231
+Stack trace:
+#0 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(555): CodeIgniter\Database\MySQLi\Connection->connect()
+#1 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(795): CodeIgniter\Database\BaseConnection->initialize()
+#2 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(1706): CodeIgniter\Database\BaseConnection->query()
+#3 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(1726): CodeIgniter\Database\BaseConnection->listTables()
+#4 /home/ubuntu/Projet_CB_LegalTech/system/Database/MigrationRunner.php(821): CodeIgniter\Database\BaseConnection->tableExists()
+#5 /home/ubuntu/Projet_CB_LegalTech/system/Database/MigrationRunner.php(173): CodeIgniter\Database\MigrationRunner->ensureTable()
+#6 /home/ubuntu/Projet_CB_LegalTech/system/Commands/Database/Migrate.php(89): CodeIgniter\Database\MigrationRunner->latest()
+#7 /home/ubuntu/Projet_CB_LegalTech/system/CLI/SignalTrait.php(245): CodeIgniter\Commands\Database\Migrate::CodeIgniter\Commands\Database\{closure}()
+#8 /home/ubuntu/Projet_CB_LegalTech/system/Commands/Database/Migrate.php(88): CodeIgniter\Commands\Database\Migrate->withSignalsBlocked()
+#9 /home/ubuntu/Projet_CB_LegalTech/system/CLI/Commands.php(74): CodeIgniter\Commands\Database\Migrate->run()
+#10 /home/ubuntu/Projet_CB_LegalTech/system/CLI/Console.php(47): CodeIgniter\CLI\Commands->run()
+#11 /home/ubuntu/Projet_CB_LegalTech/system/Boot.php(442): CodeIgniter\CLI\Console->run()
+#12 /home/ubuntu/Projet_CB_LegalTech/system/Boot.php(166): CodeIgniter\Boot::runCommand()
+#13 /home/ubuntu/Projet_CB_LegalTech/spark(87): CodeIgniter\Boot::bootSpark()
+#14 {main}
+ERROR - 2026-09-25 15:22:48 --> Error connecting to the database: mysqli_sql_exception: Unknown database 'legaltech_db' in /home/ubuntu/Projet_CB_LegalTech/system/Database/MySQLi/Connection.php:201
+Stack trace:
+#0 /home/ubuntu/Projet_CB_LegalTech/system/Database/MySQLi/Connection.php(201): mysqli->real_connect()
+#1 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(555): CodeIgniter\Database\MySQLi\Connection->connect()
+#2 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(795): CodeIgniter\Database\BaseConnection->initialize()
+#3 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(1706): CodeIgniter\Database\BaseConnection->query()
+#4 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(1726): CodeIgniter\Database\BaseConnection->listTables()
+#5 /home/ubuntu/Projet_CB_LegalTech/system/Database/MigrationRunner.php(821): CodeIgniter\Database\BaseConnection->tableExists()
+#6 /home/ubuntu/Projet_CB_LegalTech/system/Database/MigrationRunner.php(173): CodeIgniter\Database\MigrationRunner->ensureTable()
+#7 /home/ubuntu/Projet_CB_LegalTech/system/Commands/Database/Migrate.php(89): CodeIgniter\Database\MigrationRunner->latest()
+#8 /home/ubuntu/Projet_CB_LegalTech/system/CLI/SignalTrait.php(245): CodeIgniter\Commands\Database\Migrate::CodeIgniter\Commands\Database\{closure}()
+#9 /home/ubuntu/Projet_CB_LegalTech/system/Commands/Database/Migrate.php(88): CodeIgniter\Commands\Database\Migrate->withSignalsBlocked()
+#10 /home/ubuntu/Projet_CB_LegalTech/system/CLI/Commands.php(74): CodeIgniter\Commands\Database\Migrate->run()
+#11 /home/ubuntu/Projet_CB_LegalTech/system/CLI/Console.php(47): CodeIgniter\CLI\Commands->run()
+#12 /home/ubuntu/Projet_CB_LegalTech/system/Boot.php(442): CodeIgniter\CLI\Console->run()
+#13 /home/ubuntu/Projet_CB_LegalTech/system/Boot.php(166): CodeIgniter\Boot::runCommand()
+#14 /home/ubuntu/Projet_CB_LegalTech/spark(87): CodeIgniter\Boot::bootSpark()
+#15 {main}
+
+Next CodeIgniter\Database\Exceptions\DatabaseException: Unknown database 'legaltech_db' in /home/ubuntu/Projet_CB_LegalTech/system/Database/MySQLi/Connection.php:231
+Stack trace:
+#0 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(555): CodeIgniter\Database\MySQLi\Connection->connect()
+#1 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(795): CodeIgniter\Database\BaseConnection->initialize()
+#2 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(1706): CodeIgniter\Database\BaseConnection->query()
+#3 /home/ubuntu/Projet_CB_LegalTech/system/Database/BaseConnection.php(1726): CodeIgniter\Database\BaseConnection->listTables()
+#4 /home/ubuntu/Projet_CB_LegalTech/system/Database/MigrationRunner.php(821): CodeIgniter\Database\BaseConnection->tableExists()
+#5 /home/ubuntu/Projet_CB_LegalTech/system/Database/MigrationRunner.php(173): CodeIgniter\Database\MigrationRunner->ensureTable()
+#6 /home/ubuntu/Projet_CB_LegalTech/system/Commands/Database/Migrate.php(89): CodeIgniter\Database\MigrationRunner->latest()
+#7 /home/ubuntu/Projet_CB_LegalTech/system/CLI/SignalTrait.php(245): CodeIgniter\Commands\Database\Migrate::CodeIgniter\Commands\Database\{closure}()
+#8 /home/ubuntu/Projet_CB_LegalTech/system/Commands/Database/Migrate.php(88): CodeIgniter\Commands\Database\Migrate->withSignalsBlocked()
+#9 /home/ubuntu/Projet_CB_LegalTech/system/CLI/Commands.php(74): CodeIgniter\Commands\Database\Migrate->run()
+#10 /home/ubuntu/Projet_CB_LegalTech/system/CLI/Console.php(47): CodeIgniter\CLI\Commands->run()
+#11 /home/ubuntu/Projet_CB_LegalTech/system/Boot.php(442): CodeIgniter\CLI\Console->run()
+#12 /home/ubuntu/Projet_CB_LegalTech/system/Boot.php(166): CodeIgniter\Boot::runCommand()
+#13 /home/ubuntu/Projet_CB_LegalTech/spark(87): CodeIgniter\Boot::bootSpark()
+#14 {main}
