@@ -244,6 +244,7 @@ class InitialSeeder extends Seeder
                 'prenoms'           => 'Olivier',
                 'email'             => 'admin@cb-legaltech.mg',
                 'mot_de_passe_hash' => password_hash('password', PASSWORD_DEFAULT),
+                'telephone'         => '0346381896',
                 'statut_compte'     => 'actif',
             ],
             [
