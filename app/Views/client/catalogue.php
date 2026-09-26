@@ -16,6 +16,15 @@
     <div class="container">
         <span class="navbar-brand">LegalTech Bail — Espace Locataire</span>
         <div>
+            <a href="<?= site_url('client/notifications') ?>" class="btn btn-outline-light btn-sm me-2 position-relative">
+                Notifications
+                <?php if (($nbNotifNonLues ?? 0) > 0) : ?>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                        <?= $nbNotifNonLues ?>
+                    </span>
+                <?php endif; ?>
+            </a>
+            <a href="<?= site_url('client/mes-demandes') ?>" class="btn btn-outline-light btn-sm me-2">Mes demandes</a>
             <a href="<?= site_url('client/profil') ?>" class="btn btn-outline-light btn-sm me-2">Mon profil</a>
             <a href="<?= site_url('auth/deconnexion') ?>" class="btn btn-outline-light btn-sm">Déconnexion</a>
         </div>

@@ -7,6 +7,8 @@ use App\Models\MaisonModel;
 use App\Models\MaisonPhotoModel;
 use App\Models\MaisonHistoriqueModel;
 use App\Models\VilleModel;
+use App\Models\DemandeModel;
+use App\Models\NotificationModel;
 
 class ClientController extends BaseController
 {
@@ -15,6 +17,8 @@ class ClientController extends BaseController
     protected MaisonPhotoModel $maisonPhotoModel;
     protected MaisonHistoriqueModel $maisonHistoriqueModel;
     protected VilleModel $villeModel;
+    protected DemandeModel $demandeModel;
+    protected NotificationModel $notificationModel;
 
     public function __construct()
     {
@@ -23,6 +27,8 @@ class ClientController extends BaseController
         $this->maisonPhotoModel      = new MaisonPhotoModel();
         $this->maisonHistoriqueModel = new MaisonHistoriqueModel();
         $this->villeModel            = new VilleModel();
+        $this->demandeModel          = new DemandeModel();
+        $this->notificationModel     = new NotificationModel();
     }
 
     // -----------------------------------------------------------------
@@ -37,10 +43,11 @@ class ClientController extends BaseController
         $villes  = $this->villeModel->orderBy('nom', 'ASC')->findAll();
 
         return view('client/catalogue', [
-            'nom'          => session('prenoms') ?? session('nom'),
-            'maisons'      => $maisons,
-            'villes'       => $villes,
-            'idVilleActif' => $idVille,
+            'nom'              => session('prenoms') ?? session('nom'),
+            'maisons'          => $maisons,
+            'villes'           => $villes,
+            'idVilleActif'     => $idVille,
+            'nbNotifNonLues'   => $this->notificationModel->compterNonLues(session('id_utilisateur')),
         ]);
     }
 
@@ -52,14 +59,94 @@ class ClientController extends BaseController
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
 
-        $photos      = $this->maisonPhotoModel->pourMaison($idMaison);
-        $historique  = $this->maisonHistoriqueModel->pourMaison($idMaison);
+        $photos     = $this->maisonPhotoModel->pourMaison($idMaison);
+        $historique = $this->maisonHistoriqueModel->pourMaison($idMaison);
+
+        $demandeEnCours = $this->demandeModel->aDemandeEnCours($idMaison, session('id_utilisateur'));
 
         return view('client/fiche_maison', [
-            'maison'     => $maison,
-            'photos'     => $photos,
-            'historique' => $historique,
+            'maison'         => $maison,
+            'photos'         => $photos,
+            'historique'     => $historique,
+            'demandeEnCours' => $demandeEnCours,
         ]);
+    }
+
+    // -----------------------------------------------------------------
+    // C3 : DEMANDE DE LOCATION + SUIVI
+    // -----------------------------------------------------------------
+
+    /**
+     * Vérifie que le profil contient le minimum requis pour louer
+     * (CIN, sexe, date de naissance). Utilisé avant toute demande.
+     */
+    private function profilEstComplet(array $utilisateur): bool
+    {
+        return ! empty($utilisateur['cin_numero'])
+            && ! empty($utilisateur['sexe'])
+            && ! empty($utilisateur['date_naissance']);
+    }
+
+    public function demanderLocation(int $idMaison)
+    {
+        $idClient    = session('id_utilisateur');
+        $utilisateur = $this->utilisateurModel->find($idClient);
+
+        // Le profil n'est demandé qu'au moment où il devient réellement nécessaire.
+        if (! $this->profilEstComplet($utilisateur)) {
+            session()->set('retour_apres_profil', site_url('client/maison/' . $idMaison));
+
+            return redirect()->to('/client/profil')
+                ->with('info', 'Merci de compléter votre CIN, votre sexe et votre date de naissance avant de faire une demande de location.');
+        }
+
+        $maison = $this->maisonModel->trouverFicheDetail($idMaison);
+        if (! $maison || $maison['statut'] !== 'disponible') {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
+
+        $resultat = $this->demandeModel->creerDemande($idMaison, $idClient);
+
+        if ($resultat === false) {
+            return redirect()->to('/client/maison/' . $idMaison)
+                ->with('erreur', 'Vous avez déjà une demande en cours pour cette maison.');
+        }
+
+        return redirect()->to('/client/mes-demandes')
+            ->with('succes', 'Votre demande a été envoyée au propriétaire.');
+    }
+
+    public function mesDemandes(): string
+    {
+        $demandes = $this->demandeModel->pourClient(session('id_utilisateur'));
+
+        return view('client/mes_demandes', ['demandes' => $demandes]);
+    }
+
+    // -----------------------------------------------------------------
+    // C4 : NOTIFICATIONS
+    // -----------------------------------------------------------------
+
+    public function notifications(): string
+    {
+        $idUtilisateur = session('id_utilisateur');
+        $notifications = $this->notificationModel->pourUtilisateur($idUtilisateur);
+
+        return view('client/notifications', ['notifications' => $notifications]);
+    }
+
+    public function marquerNotificationLue(int $idNotification)
+    {
+        $this->notificationModel->marquerCommeLue($idNotification, session('id_utilisateur'));
+
+        return redirect()->back();
+    }
+
+    public function marquerToutesNotificationsLues()
+    {
+        $this->notificationModel->marquerToutesCommeLues(session('id_utilisateur'));
+
+        return redirect()->back()->with('succes', 'Toutes les notifications ont été marquées comme lues.');
     }
 
     // -----------------------------------------------------------------
@@ -125,6 +212,16 @@ class ClientController extends BaseController
             'nom'     => $donnees['nom'],
             'prenoms' => $donnees['prenoms'],
         ]);
+
+        // Si l'utilisateur venait d'une tentative de demande de location,
+        // on le ramène directement là où il voulait aller, sans détour inutile.
+        $retour = session('retour_apres_profil');
+        if ($retour) {
+            session()->remove('retour_apres_profil');
+
+            return redirect()->to($retour)
+                ->with('succes', 'Profil complété. Vous pouvez maintenant envoyer votre demande.');
+        }
 
         return redirect()->to('/client/profil')
             ->with('succes', 'Profil mis à jour avec succès.');

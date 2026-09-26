@@ -11,6 +11,7 @@
     <div class="container">
         <span class="navbar-brand">LegalTech Bail — Espace Locataire</span>
         <div>
+            <a href="<?= site_url('client/mes-demandes') ?>" class="btn btn-outline-light btn-sm me-2">Mes demandes</a>
             <a href="<?= site_url('client/profil') ?>" class="btn btn-outline-light btn-sm me-2">Mon profil</a>
             <a href="<?= site_url('auth/deconnexion') ?>" class="btn btn-outline-light btn-sm">Déconnexion</a>
         </div>
@@ -85,10 +86,21 @@
                         <p class="small text-muted">Aucun historique disponible pour ce bien.</p>
                     <?php endif; ?>
 
-                    <button type="button" class="btn btn-primary w-100 mt-2" disabled title="Fonctionnalité C3, à venir">
-                        Demander la location
-                    </button>
-                    <div class="form-text text-center">Le bouton de demande sera activé au lot C3.</div>
+                    <?php if ($demandeEnCours) : ?>
+                        <button type="button" class="btn btn-secondary w-100 mt-2" disabled>
+                            Demande déjà envoyée
+                        </button>
+                        <div class="form-text text-center">
+                            <a href="<?= site_url('client/mes-demandes') ?>">Voir le suivi de ma demande</a>
+                        </div>
+                    <?php else : ?>
+                        <form method="post" action="<?= site_url('client/demander/' . $maison['id_maison']) ?>">
+                            <?= csrf_field() ?>
+                            <button type="submit" class="btn btn-primary w-100 mt-2">
+                                Demander la location
+                            </button>
+                        </form>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

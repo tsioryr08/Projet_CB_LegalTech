@@ -24,6 +24,10 @@
         <div class="alert alert-success"><?= esc(session('succes')) ?></div>
     <?php endif; ?>
 
+    <?php if (session('info')) : ?>
+        <div class="alert alert-warning"><?= esc(session('info')) ?></div>
+    <?php endif; ?>
+
     <?php if (session('errors')) : ?>
         <div class="alert alert-danger">
             <ul class="mb-0">
