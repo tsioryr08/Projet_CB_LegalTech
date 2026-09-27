@@ -8,6 +8,7 @@ use App\Models\MaisonPhotoModel;
 use App\Models\MaisonHistoriqueModel;
 use App\Models\VilleModel;
 use App\Models\DemandeModel;
+use App\Models\ContratModel;
 use App\Models\NotificationModel;
 
 class ClientController extends BaseController
@@ -119,6 +120,16 @@ class ClientController extends BaseController
     public function mesDemandes(): string
     {
         $demandes = $this->demandeModel->pourClient(session('id_utilisateur'));
+
+        $contratModel = new ContratModel();
+        foreach ($demandes as &$demande) {
+            $demande['contrat'] = $contratModel
+                ->where('id_client', (int) session('id_utilisateur'))
+                ->where('id_maison', (int) $demande['id_maison'])
+                ->orderBy('cree_le', 'DESC')
+                ->first();
+        }
+        unset($demande);
 
         return view('client/mes_demandes', ['demandes' => $demandes]);
     }
