@@ -25,6 +25,7 @@
                 <?php endif; ?>
             </a>
             <a href="<?= site_url('client/mes-demandes') ?>" class="btn btn-outline-light btn-sm me-2">Mes demandes</a>
+            <a href="<?= site_url('client/mes-contrats') ?>" class="btn btn-outline-light btn-sm me-2">Mes contrats</a>
             <a href="<?= site_url('client/profil') ?>" class="btn btn-outline-light btn-sm me-2">Mon profil</a>
             <a href="<?= site_url('auth/deconnexion') ?>" class="btn btn-outline-light btn-sm">Déconnexion</a>
         </div>

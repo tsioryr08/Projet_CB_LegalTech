@@ -43,6 +43,19 @@ class DemandeModel extends Model
     }
 
     /**
+     * Récupère une demande précise appartenant bien au client connecté,
+     * avec les infos de la maison nécessaires au dossier (chambres, usage autorisé).
+     */
+    public function trouverPourClient(int $idDemande, int $idClient): ?array
+    {
+        return $this->select('demandes.*, maisons.nb_chambres, maisons.usage_autorise, maisons.titre')
+            ->join('maisons', 'maisons.id_maison = demandes.id_maison')
+            ->where('demandes.id_demande', $idDemande)
+            ->where('demandes.id_client', $idClient)
+            ->first();
+    }
+
+    /**
      * Liste des demandes d'un client, avec le titre et la ville de la maison.
      */
     public function pourClient(int $idClient): array

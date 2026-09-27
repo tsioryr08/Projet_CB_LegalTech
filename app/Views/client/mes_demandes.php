@@ -54,6 +54,7 @@
                         <th>Loyer</th>
                         <th>Statut</th>
                         <th>Date de la demande</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -71,6 +72,13 @@
                             <?php endif; ?>
                         </td>
                         <td><?= date('d/m/Y à H:i', strtotime($d['date_demande'])) ?></td>
+                        <td>
+                            <?php if ($d['statut'] === 'validee') : ?>
+                                <a href="<?= site_url('client/dossier/' . $d['id_demande']) ?>" class="btn btn-sm btn-primary">
+                                    Remplir le dossier
+                                </a>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

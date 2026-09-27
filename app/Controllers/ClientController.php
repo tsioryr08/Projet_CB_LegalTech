@@ -9,6 +9,10 @@ use App\Models\MaisonHistoriqueModel;
 use App\Models\VilleModel;
 use App\Models\DemandeModel;
 use App\Models\NotificationModel;
+use App\Models\DossierLocationModel;
+use App\Models\ContratModel;
+use App\Models\AvenantModel;
+use App\Models\SignatureModel;
 
 class ClientController extends BaseController
 {
@@ -19,6 +23,10 @@ class ClientController extends BaseController
     protected VilleModel $villeModel;
     protected DemandeModel $demandeModel;
     protected NotificationModel $notificationModel;
+    protected DossierLocationModel $dossierLocationModel;
+    protected ContratModel $contratModel;
+    protected AvenantModel $avenantModel;
+    protected SignatureModel $signatureModel;
 
     public function __construct()
     {
@@ -29,6 +37,10 @@ class ClientController extends BaseController
         $this->villeModel            = new VilleModel();
         $this->demandeModel          = new DemandeModel();
         $this->notificationModel     = new NotificationModel();
+        $this->dossierLocationModel  = new DossierLocationModel();
+        $this->contratModel          = new ContratModel();
+        $this->avenantModel          = new AvenantModel();
+        $this->signatureModel        = new SignatureModel();
     }
 
     // -----------------------------------------------------------------
@@ -147,6 +159,235 @@ class ClientController extends BaseController
         $this->notificationModel->marquerToutesCommeLues(session('id_utilisateur'));
 
         return redirect()->back()->with('succes', 'Toutes les notifications ont été marquées comme lues.');
+    }
+
+    // -----------------------------------------------------------------
+    // C5 : FORMULAIRE DU DOSSIER DE LOCATION
+    // -----------------------------------------------------------------
+
+    /**
+     * Contrôle basique LOCAL, en attendant le vrai moteur de règles LegalTech
+     * (lot P4, côté Olivier). A REMPLACER par l'appel à sa fonction/endpoint
+     * dès qu'il aura terminé — voir TODO plus bas.
+     *
+     * Retourne ['statut' => 'conforme'|'alerte'|'bloque', 'messages' => [...]]
+     */
+    private function controlerDossierBasique(array $demande, array $donnees): array
+    {
+        $messages = [];
+        $statut   = 'conforme';
+
+        // Suroccupation : plus de 3 occupants par chambre (seuil de conception, à valider)
+        if ($donnees['nb_occupants'] > 3 * $demande['nb_chambres']) {
+            $statut = 'alerte';
+            $messages[] = "Le nombre d'occupants ({$donnees['nb_occupants']}) semble élevé pour {$demande['nb_chambres']} chambre(s).";
+        }
+
+        // Cohérence usage déclaré / usage autorisé sur la maison
+        if ($donnees['usage_declare'] !== $demande['usage_autorise'] && $demande['usage_autorise'] !== 'mixte') {
+            $statut = 'bloque';
+            $messages[] = "L'usage déclaré ({$donnees['usage_declare']}) ne correspond pas à l'usage autorisé pour ce bien ({$demande['usage_autorise']}).";
+        }
+
+        // NIF/STAT requis si usage commercial ou mixte
+        if (in_array($donnees['usage_declare'], ['commercial', 'mixte'], true)) {
+            $utilisateur = $this->utilisateurModel->find(session('id_utilisateur'));
+            if (empty($utilisateur['nif']) || empty($utilisateur['stat'])) {
+                if ($statut === 'conforme') {
+                    $statut = 'alerte';
+                }
+                $messages[] = 'Le NIF et le STAT sont requis pour un usage commercial ou mixte. Complétez votre profil.';
+            }
+        }
+
+        // TODO P4 : remplacer ce contrôle local par l'appel au moteur de règles
+        // complet d'Olivier (format/district/sexe CIN, capacité mineur/condamné,
+        // plafonds caution/loyer), et enregistrer le détail dans regles_resultats
+        // avec le code de chaque regles_legaltech déclenchée.
+
+        return ['statut' => $statut, 'messages' => $messages];
+    }
+
+    public function formulaireDossier(int $idDemande): string
+    {
+        $idClient = session('id_utilisateur');
+        $demande  = $this->demandeModel->trouverPourClient($idDemande, $idClient);
+
+        if (! $demande) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
+
+        if ($demande['statut'] !== 'validee') {
+            return redirect()->to('/client/mes-demandes')
+                ->with('erreur', 'Le propriétaire doit d\'abord valider votre demande avant de remplir le dossier.');
+        }
+
+        $dossierExistant = $this->dossierLocationModel->pourDemande($idDemande);
+
+        return view('client/dossier_location', [
+            'demande'          => $demande,
+            'dossierExistant'  => $dossierExistant,
+        ]);
+    }
+
+    public function enregistrerDossier(int $idDemande)
+    {
+        $idClient = session('id_utilisateur');
+        $demande  = $this->demandeModel->trouverPourClient($idDemande, $idClient);
+
+        if (! $demande || $demande['statut'] !== 'validee') {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
+
+        $regles = [
+            'nb_occupants'      => 'required|is_natural_no_zero|less_than_equal_to[50]',
+            'usage_declare'     => 'required|in_list[habitation,commercial,mixte]',
+            'activite_declaree' => 'permit_empty|max_length[150]',
+        ];
+
+        if (! $this->validate($regles)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $donnees = [
+            'nb_occupants'      => (int) $this->request->getPost('nb_occupants'),
+            'usage_declare'     => $this->request->getPost('usage_declare'),
+            'activite_declaree' => $this->request->getPost('activite_declaree') ?: null,
+        ];
+
+        $controle = $this->controlerDossierBasique($demande, $donnees);
+
+        $dossierExistant = $this->dossierLocationModel->pourDemande($idDemande);
+
+        $donneesAEnregistrer = array_merge($donnees, [
+            'id_demande'               => $idDemande,
+            'statut_validation_legale' => $controle['statut'],
+        ]);
+
+        if ($dossierExistant) {
+            $this->dossierLocationModel->update($dossierExistant['id_dossier'], $donneesAEnregistrer);
+        } else {
+            $this->dossierLocationModel->insert($donneesAEnregistrer);
+        }
+
+        if ($controle['statut'] === 'bloque') {
+            return redirect()->to('/client/dossier/' . $idDemande)
+                ->with('erreur', 'Dossier bloqué : ' . implode(' ', $controle['messages']));
+        }
+
+        $messageSucces = 'Dossier enregistré avec succès.';
+        if (! empty($controle['messages'])) {
+            $messageSucces .= ' Alerte(s) : ' . implode(' ', $controle['messages']);
+        }
+
+        return redirect()->to('/client/mes-demandes')->with('succes', $messageSucces);
+    }
+
+    // -----------------------------------------------------------------
+    // C6 : MON CONTRAT — lecture, signature, avenants
+    // -----------------------------------------------------------------
+
+    public function mesContrats(): string
+    {
+        $contrats = $this->contratModel->pourClient(session('id_utilisateur'));
+
+        return view('client/mes_contrats', ['contrats' => $contrats]);
+    }
+
+    public function monContrat(int $idContrat): string
+    {
+        $idClient = session('id_utilisateur');
+        $contrat  = $this->contratModel->trouverPourClient($idContrat, $idClient);
+
+        if (! $contrat) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
+
+        $avenants = $this->avenantModel->pourContrat($idContrat);
+
+        // Le bouton de signature du locataire n'apparaît que si le bailleur
+        // a déjà signé (flux décidé : bailleur signe en premier, locataire ensuite).
+        $peutSigner = $contrat['statut'] === 'signe_bailleur'
+            && ! $this->signatureModel->existeDeja($idContrat, null, 'locataire');
+
+        return view('client/mon_contrat', [
+            'contrat'    => $contrat,
+            'avenants'   => $avenants,
+            'peutSigner' => $peutSigner,
+        ]);
+    }
+
+    public function signerContrat(int $idContrat)
+    {
+        $idClient = session('id_utilisateur');
+        $contrat  = $this->contratModel->trouverPourClient($idContrat, $idClient);
+
+        if (! $contrat || $contrat['statut'] !== 'signe_bailleur') {
+            return redirect()->back()->with('erreur', 'Ce contrat ne peut pas encore être signé.');
+        }
+
+        if ($this->signatureModel->existeDeja($idContrat, null, 'locataire')) {
+            return redirect()->back()->with('erreur', 'Vous avez déjà signé ce contrat.');
+        }
+
+        $utilisateur = $this->utilisateurModel->find($idClient);
+        $nomAffiche  = trim($utilisateur['nom'] . ' ' . ($utilisateur['prenoms'] ?? ''));
+
+        $this->signatureModel->insert([
+            'id_contrat'      => $idContrat,
+            'id_utilisateur'  => $idClient,
+            'role_signataire' => 'locataire',
+            'nom_affiche'     => $nomAffiche,
+            'signe_le'        => date('Y-m-d H:i:s'),
+            'adresse_ip'      => $this->request->getIPAddress(),
+        ]);
+
+        // Une fois les deux parties signataires, le contrat devient actif.
+        $this->contratModel->update($idContrat, ['statut' => 'actif']);
+
+        return redirect()->to('/client/contrat/' . $idContrat)
+            ->with('succes', 'Contrat signé avec succès. Il est maintenant actif.');
+    }
+
+    public function signerAvenant(int $idAvenant)
+    {
+        $idClient = session('id_utilisateur');
+        $avenant  = $this->avenantModel->trouver($idAvenant);
+
+        if (! $avenant) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
+
+        // Vérifie que l'avenant appartient bien à un contrat du client connecté
+        $contrat = $this->contratModel->trouverPourClient($avenant['id_contrat'], $idClient);
+        if (! $contrat) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
+
+        if ($avenant['statut'] !== 'signe_bailleur') {
+            return redirect()->back()->with('erreur', 'Cet avenant ne peut pas encore être signé.');
+        }
+
+        if ($this->signatureModel->existeDeja(null, $idAvenant, 'locataire')) {
+            return redirect()->back()->with('erreur', 'Vous avez déjà signé cet avenant.');
+        }
+
+        $utilisateur = $this->utilisateurModel->find($idClient);
+        $nomAffiche  = trim($utilisateur['nom'] . ' ' . ($utilisateur['prenoms'] ?? ''));
+
+        $this->signatureModel->insert([
+            'id_avenant'      => $idAvenant,
+            'id_utilisateur'  => $idClient,
+            'role_signataire' => 'locataire',
+            'nom_affiche'     => $nomAffiche,
+            'signe_le'        => date('Y-m-d H:i:s'),
+            'adresse_ip'      => $this->request->getIPAddress(),
+        ]);
+
+        $this->avenantModel->update($idAvenant, ['statut' => 'actif']);
+
+        return redirect()->to('/client/contrat/' . $avenant['id_contrat'])
+            ->with('succes', 'Avenant signé avec succès.');
     }
 
     // -----------------------------------------------------------------

@@ -18,7 +18,7 @@ $routes->post('auth/inscription/(:segment)', 'Auth::inscription/$1');
 
 $routes->get('auth/deconnexion', 'Auth::deconnexion');
 
-
+  
 // -----------------------------------------------------------------
 // ESPACE CLIENT (locataire) — protégé par le filtre auth:client
 // -----------------------------------------------------------------
@@ -30,6 +30,14 @@ $routes->get('client/mes-demandes', 'ClientController::mesDemandes', ['filter' =
 $routes->get('client/notifications', 'ClientController::notifications', ['filter' => 'auth:client']);
 $routes->post('client/notifications/(:num)/lu', 'ClientController::marquerNotificationLue/$1', ['filter' => 'auth:client']);
 $routes->post('client/notifications/tout-marquer-lu', 'ClientController::marquerToutesNotificationsLues', ['filter' => 'auth:client']);
+ 
+$routes->get('client/dossier/(:num)', 'ClientController::formulaireDossier/$1', ['filter' => 'auth:client']);
+$routes->post('client/dossier/(:num)', 'ClientController::enregistrerDossier/$1', ['filter' => 'auth:client']);
+ 
+$routes->get('client/mes-contrats', 'ClientController::mesContrats', ['filter' => 'auth:client']);
+$routes->get('client/contrat/(:num)', 'ClientController::monContrat/$1', ['filter' => 'auth:client']);
+$routes->post('client/contrat/(:num)/signer', 'ClientController::signerContrat/$1', ['filter' => 'auth:client']);
+$routes->post('client/avenant/(:num)/signer', 'ClientController::signerAvenant/$1', ['filter' => 'auth:client']);
  
 $routes->get('client/profil', 'ClientController::profil', ['filter' => 'auth:client']);
 $routes->post('client/profil', 'ClientController::mettreAJourProfil', ['filter' => 'auth:client']);
