@@ -13,8 +13,7 @@ class SignatureModel extends Model
     protected $useTimestamps    = false;
 
     protected $allowedFields = [
-        'id_contrat', 'id_avenant', 'id_utilisateur', 'role_signataire',
-        'nom_affiche', 'signe_le', 'adresse_ip',
+        'id_contrat', 'id_avenant', 'id_utilisateur', 'role_signataire', 'nom_affiche', 'signe_le', 'adresse_ip',
     ];
 
     public function existeDeja(?int $idContrat, ?int $idAvenant, string $role): bool

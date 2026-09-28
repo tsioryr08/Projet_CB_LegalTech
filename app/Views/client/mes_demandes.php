@@ -53,6 +53,7 @@
                         <th>Ville</th>
                         <th>Loyer</th>
                         <th>Statut</th>
+                        <th>Contrat</th>
                         <th>Date de la demande</th>
                         <th></th>
                     </tr>
@@ -69,6 +70,13 @@
                             </span>
                             <?php if ($d['statut'] === 'refusee' && $d['motif_refus']) : ?>
                                 <div class="small text-muted">Motif : <?= esc($d['motif_refus']) ?></div>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php if (! empty($d['contrat'])) : ?>
+                                <a href="<?= site_url('client/contrats/' . $d['contrat']['id_contrat']) ?>" class="btn btn-sm btn-primary">Mon contrat</a>
+                            <?php else : ?>
+                                <span class="text-muted small">—</span>
                             <?php endif; ?>
                         </td>
                         <td><?= date('d/m/Y à H:i', strtotime($d['date_demande'])) ?></td>

@@ -46,4 +46,34 @@ $routes->post('client/profil', 'ClientController::mettreAJourProfil', ['filter' 
 // ESPACE PROPRIETAIRE — protégé par le filtre auth:proprietaire
 // -----------------------------------------------------------------
 $routes->get('proprietaire/tableau-de-bord', 'ProprietaireController::tableauDeBord', ['filter' => 'auth:proprietaire']);
+$routes->get('proprietaire/contrats', 'ContratController::indexProprietaire', ['filter' => 'auth:proprietaire']);
+$routes->get('proprietaire/demandes/(:num)/contrat', 'ContratController::formulaireGenerer/$1', ['filter' => 'auth:proprietaire']);
+$routes->post('proprietaire/demandes/(:num)/contrat', 'ContratController::generer/$1', ['filter' => 'auth:proprietaire']);
+$routes->get('proprietaire/contrats/(:num)', 'ContratController::detailProprietaire/$1', ['filter' => 'auth:proprietaire']);
+$routes->get('proprietaire/contrats/(:num)/avenants', 'ContratController::avenants/$1', ['filter' => 'auth:proprietaire']);
+$routes->post('proprietaire/avenants/(:num)/signer', 'ContratController::signerAvenantBailleur/$1', ['filter' => 'auth:proprietaire']);
+$routes->post('contrats/(:num)/signer-bailleur', 'ContratController::signerBailleur/$1', ['filter' => 'auth:proprietaire']);
  
+$routes->get('proprietaire/maisons', 'MaisonController::index', ['filter' => 'auth:proprietaire']);
+$routes->get('proprietaire/maisons/ajouter', 'MaisonController::formulaireAjout', ['filter' => 'auth:proprietaire']);
+$routes->post('proprietaire/maisons/ajouter', 'MaisonController::ajouter', ['filter' => 'auth:proprietaire']);
+$routes->get('proprietaire/maisons/(:num)/modifier', 'MaisonController::formulaireModifier/$1', ['filter' => 'auth:proprietaire']);
+$routes->post('proprietaire/maisons/(:num)/modifier', 'MaisonController::modifier/$1', ['filter' => 'auth:proprietaire']);
+$routes->post('proprietaire/maisons/(:num)/supprimer', 'MaisonController::supprimer/$1', ['filter' => 'auth:proprietaire']);
+$routes->post('proprietaire/maisons/(:num)/statut', 'MaisonController::changerStatut/$1', ['filter' => 'auth:proprietaire']);
+$routes->get('proprietaire/maisons/(:num)/photos', 'MaisonController::gererPhotos/$1', ['filter' => 'auth:proprietaire']);
+$routes->post('proprietaire/maisons/(:num)/photos', 'MaisonController::ajouterPhoto/$1', ['filter' => 'auth:proprietaire']);
+$routes->post('proprietaire/maisons/(:num)/photos/(:num)/supprimer', 'MaisonController::supprimerPhoto/$1/$2', ['filter' => 'auth:proprietaire']);
+$routes->get('proprietaire/maisons/(:num)/historique', 'MaisonController::historique/$1', ['filter' => 'auth:proprietaire']);
+$routes->post('proprietaire/maisons/(:num)/historique', 'MaisonController::mettreAJourHistorique/$1', ['filter' => 'auth:proprietaire']);
+
+$routes->get('proprietaire/demandes', 'DemandeController::index', ['filter' => 'auth:proprietaire']);
+$routes->post('proprietaire/demandes/(:num)/valider', 'DemandeController::valider/$1', ['filter' => 'auth:proprietaire']);
+$routes->post('proprietaire/demandes/(:num)/refuser', 'DemandeController::refuser/$1', ['filter' => 'auth:proprietaire']);
+$routes->get('contrats/(:num)/pdf', 'ContratController::telechargerPdf/$1', ['filter' => 'auth']);
+$routes->get('contrats/(:num)/fiche-fiscale', 'ContratController::telechargerFicheFiscale/$1', ['filter' => 'auth']);
+$routes->get('client/contrats/(:num)', 'ContratController::detailClient/$1', ['filter' => 'auth:client']);
+$routes->get('client/contrats/(:num)/avenants', 'ContratController::avenants/$1', ['filter' => 'auth:client']);
+$routes->post('client/avenants/(:num)/signer', 'ContratController::signerAvenantLocataire/$1', ['filter' => 'auth:client']);
+$routes->post('contrats/(:num)/signer-locataire', 'ContratController::signerLocataire/$1', ['filter' => 'auth:client']);
+$routes->post('client/dossier/(:num)/verifier-regles', 'ReglesController::verifierLive/$1', ['filter' => 'auth:client']);
