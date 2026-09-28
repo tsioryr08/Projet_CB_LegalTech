@@ -185,6 +185,116 @@ class ContratController extends BaseController
         return view('client/contrat', $contrat);
     }
 
+    public function telechargerPdf(int $idContrat)
+    {
+        $contrat = $this->chargerContratPourTelechargement($idContrat);
+
+        if ($contrat === null) {
+            return redirect()->to('/')->with('erreur', 'Contrat introuvable ou accès non autorisé.');
+        }
+
+        $pdf = $this->genererPdfContratSigne($idContrat)
+            ?? $this->lirePdfStocke($contrat['contenu_pdf_chemin'] ?? null);
+
+        if ($pdf === null) {
+            $libelle = $contrat['type_libelle'] ?? ($contrat['usage_autorise'] ?? 'Bail');
+            $pdf = (new ContratPdfService())->genererPdfTextuel(
+                'Contrat de bail ' . $libelle,
+                $this->lignesDepuisTemplate((string) ($contrat['texte_contrat'] ?? ''))
+            );
+        }
+
+        return $this->reponsePdf($pdf, 'contrat-' . ($contrat['numero_contrat'] ?? $idContrat) . '.pdf');
+    }
+
+    public function telechargerFicheFiscale(int $idContrat)
+    {
+        $contrat = $this->chargerContratPourTelechargement($idContrat);
+
+        if ($contrat === null) {
+            return redirect()->to('/')->with('erreur', 'Contrat introuvable ou accès non autorisé.');
+        }
+
+        $fiche = $contrat['ficheFiscale'] ?? null;
+
+        if ($fiche === null) {
+            return redirect()->back()->with('erreur', 'Aucune fiche fiscale n’est disponible pour ce contrat.');
+        }
+
+        $pdf = $this->lirePdfStocke($fiche['chemin_pdf'] ?? null);
+
+        if ($pdf === null) {
+            $pdf = (new ContratPdfService())->genererPdfTextuel(
+                'Fiche fiscale - ' . ($contrat['numero_contrat'] ?? $idContrat),
+                $this->lignesFicheFiscaleDepuisContrat($contrat, $fiche)
+            );
+        }
+
+        return $this->reponsePdf($pdf, 'fiche-fiscale-' . ($contrat['numero_contrat'] ?? $idContrat) . '.pdf');
+    }
+
+    private function chargerContratPourTelechargement(int $idContrat): ?array
+    {
+        $role = (string) session('role');
+
+        if (! in_array($role, ['client', 'proprietaire'], true)) {
+            return null;
+        }
+
+        return $this->chargerContratAccessible($idContrat, (int) session('id_utilisateur'), $role);
+    }
+
+    private function lirePdfStocke(?string $cheminRelatif): ?string
+    {
+        if (empty($cheminRelatif)) {
+            return null;
+        }
+
+        $cheminAbsolu = FCPATH . ltrim((string) $cheminRelatif, '/');
+
+        if (! is_file($cheminAbsolu) || filesize($cheminAbsolu) === 0) {
+            return null;
+        }
+
+        $contenu = file_get_contents($cheminAbsolu);
+
+        return $contenu === false ? null : $contenu;
+    }
+
+    private function reponsePdf(string $contenuPdf, string $nomFichier)
+    {
+        $nomPropre = preg_replace('/[^A-Za-z0-9._-]/', '-', $nomFichier) ?: 'document.pdf';
+
+        return $this->response
+            ->setHeader('Content-Type', 'application/pdf')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $nomPropre . '"')
+            ->setHeader('Content-Length', (string) strlen($contenuPdf))
+            ->setHeader('Cache-Control', 'private, max-age=0, must-revalidate')
+            ->setBody($contenuPdf);
+    }
+
+    private function lignesFicheFiscaleDepuisContrat(array $contrat, array $fiche): array
+    {
+        $dateLimite = $fiche['date_limite_enreg'] ?? null;
+        $dateLimiteAffichee = empty($dateLimite) ? '—' : date('d/m/Y', strtotime((string) $dateLimite));
+        $taux = $fiche['taux_applique'] ?? ($contrat['taux_enregistrement_applique'] ?? '—');
+        $montantDroit = $fiche['montant_droit'] ?? ($contrat['montant_droit_enregistrement'] ?? 0);
+
+        return [
+            'FICHE FISCALE',
+            'Contrat n° ' . ($contrat['numero_contrat'] ?? '—'),
+            'Maison : ' . ($contrat['maison_titre'] ?? '—'),
+            'Usage : ' . ($contrat['type_libelle'] ?? ($contrat['usage_autorise'] ?? '—')),
+            'Loyer mensuel : ' . number_format((float) ($contrat['loyer_mensuel'] ?? 0), 0, ',', ' ') . ' Ariary',
+            'Base loyers annuels : ' . number_format((float) ($fiche['montant_total_loyers'] ?? 0), 0, ',', ' ') . ' Ariary',
+            'Taux appliqué : ' . $taux . '%',
+            'Montant du droit d’enregistrement : ' . number_format((float) $montantDroit, 0, ',', ' ') . ' Ariary',
+            'Date limite d’enregistrement : ' . $dateLimiteAffichee,
+            'Statut d’enregistrement : ' . ($fiche['statut_enregistrement'] ?? 'non_enregistre'),
+            'Document généré automatiquement par LegalTech.',
+        ];
+    }
+
     public function signerBailleur(int $idContrat)
     {
         $contrat = $this->chargerContratAccessible($idContrat, (int) session('id_utilisateur'), 'proprietaire');
@@ -221,6 +331,10 @@ class ContratController extends BaseController
         (new ContratModel())->update($idContrat, [
             'statut' => $aDejaSigneLocataire !== null ? 'valide' : 'signe_bailleur',
         ]);
+
+        if ($aDejaSigneLocataire !== null) {
+            $this->genererPdfContratSigne($idContrat);
+        }
 
         (new NotificationModel())->insert([
             'id_utilisateur' => (int) $contrat['id_client'],
@@ -271,6 +385,8 @@ class ContratController extends BaseController
         ]);
 
         (new ContratModel())->update($idContrat, ['statut' => 'valide']);
+
+        $this->genererPdfContratSigne($idContrat);
 
         (new NotificationModel())->insert([
             'id_utilisateur' => (int) $contrat['id_proprietaire'],
@@ -371,6 +487,110 @@ class ContratController extends BaseController
         ]);
 
         return redirect()->to('/client/contrats/' . $avenant['id_contrat'])->with('succes', 'Signature de l’avenant enregistrée.');
+    }
+
+    /**
+     * Régénère le PDF du contrat avec le nom et la signature (prénom) du bailleur
+     * et du preneur, uniquement si les deux ont signé. Retourne null sinon.
+     */
+    private function genererPdfContratSigne(int $idContrat): ?string
+    {
+        $roles = array_column(
+            (new SignatureModel())->where('id_contrat', $idContrat)->findAll(),
+            'role_signataire'
+        );
+
+        if (! in_array('bailleur', $roles, true) || ! in_array('locataire', $roles, true)) {
+            return null;
+        }
+
+        $contrat = (new ContratModel())->find($idContrat);
+        if ($contrat === null) {
+            return null;
+        }
+
+        $maison = (new MaisonModel())->find((int) $contrat['id_maison']);
+        $client = (new UtilisateurModel())->find((int) $contrat['id_client']);
+        $proprietaire = (new UtilisateurModel())->find((int) $contrat['id_proprietaire']);
+        $typeContrat = (new TypeContratModel())->where('id_type_contrat', (int) $contrat['id_type_contrat'])->first();
+
+        if ($maison === null || $client === null || $proprietaire === null || $typeContrat === null) {
+            return null;
+        }
+
+        $dossier = db_connect()->table('dossiers_location')
+            ->where('id_dossier', (int) $contrat['id_dossier'])
+            ->get()
+            ->getRowArray() ?? [];
+
+        $donnees = [
+            'usage_declare' => $dossier['usage_declare'] ?? ($typeContrat['code'] ?? 'habitation'),
+            'nb_occupants' => (int) ($dossier['nb_occupants'] ?? 1),
+            'activite_declaree' => (string) ($dossier['activite_declaree'] ?? ''),
+            'depot_garantie' => (float) ($contrat['depot_garantie'] ?? 0),
+            'date_debut' => $contrat['date_debut'] ?? date('Y-m-d'),
+            'date_fin' => $contrat['date_fin'] ?? null,
+        ];
+
+        $contexte = ['maison' => $maison, 'client' => $client, 'proprietaire' => $proprietaire];
+        $dateSignature = date('d/m/Y', strtotime((string) ($contrat['cree_le'] ?? 'now')));
+
+        $texte = $this->construireContenuHtml(
+            $contexte,
+            $typeContrat,
+            $donnees,
+            (float) ($contrat['montant_droit_enregistrement'] ?? 0),
+            (string) $contrat['numero_contrat'],
+            $dateSignature
+        );
+
+        $texte = $this->insererSignatures(
+            $texte,
+            trim(($proprietaire['prenoms'] ?? '') . ' ' . ($proprietaire['nom'] ?? '')),
+            $this->premierPrenom($proprietaire['prenoms'] ?? ''),
+            trim(($client['prenoms'] ?? '') . ' ' . ($client['nom'] ?? '')),
+            $this->premierPrenom($client['prenoms'] ?? '')
+        );
+
+        $pdf = (new ContratPdfService())->genererPdfTextuel(
+            'Contrat de bail ' . ($typeContrat['libelle'] ?? ''),
+            $this->lignesDepuisTemplate($texte)
+        );
+
+        $chemin = $contrat['contenu_pdf_chemin'] ?? null;
+        if (! empty($chemin)) {
+            if (! is_dir(dirname(FCPATH . $chemin))) {
+                mkdir(dirname(FCPATH . $chemin), 0775, true);
+            }
+            file_put_contents(FCPATH . $chemin, $pdf);
+        }
+
+        return $pdf;
+    }
+
+    private function insererSignatures(string $texte, string $nomBailleur, string $prenomBailleur, string $nomPreneur, string $prenomPreneur): string
+    {
+        $esc = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES);
+
+        $blocBailleur = 'Nom : ' . $esc($nomBailleur) . "\nSignature : " . $esc($prenomBailleur);
+        $blocPreneur = 'Nom : ' . $esc($nomPreneur) . "\nSignature : " . $esc($prenomPreneur);
+        $marque = '(nom et signature)';
+
+        if (substr_count($texte, $marque) >= 2) {
+            $texte = substr_replace($texte, $blocBailleur, strpos($texte, $marque), strlen($marque));
+
+            return substr_replace($texte, $blocPreneur, strpos($texte, $marque), strlen($marque));
+        }
+
+        // Modèle sans bloc de signatures (ex. bail mixte) : on l'ajoute à la fin
+        return rtrim($texte) . "\n\nLe Propriétaire\n" . $blocBailleur . "\nLe Locataire\n" . $blocPreneur;
+    }
+
+    private function premierPrenom(string $prenoms): string
+    {
+        $parts = preg_split('/[\s,]+/u', trim($prenoms), -1, PREG_SPLIT_NO_EMPTY);
+
+        return $parts[0] ?? '';
     }
 
     private function relancerSignatureContratSiNecessaire(array $contrat): void
@@ -538,10 +758,15 @@ class ContratController extends BaseController
         return (int) $db->insertID();
     }
 
-    private function construireContenuHtml(array $contexte, array $typeContrat, array $donnees, float $montantDroit, string $numeroContrat): string
+    private function construireContenuHtml(array $contexte, array $typeContrat, array $donnees, float $montantDroit, string $numeroContrat, ?string $dateSignature = null): string
     {
         $code = $typeContrat['code'] ?? 'habitation';
         $template = $this->templateContratSelonType($code);
+
+        $dateDebut = $donnees['date_debut'] ?? date('Y-m-d');
+        $dateFin = ! empty($donnees['date_fin'])
+            ? $donnees['date_fin']
+            : date('Y-m-d', strtotime($dateDebut . ' +1 year'));
 
         $valeurs = [
             '{{numero_contrat}}' => $numeroContrat,
@@ -562,9 +787,10 @@ class ContratController extends BaseController
             '{{ville}}' => htmlspecialchars($contexte['maison']['ville'] ?? 'Antananarivo', ENT_QUOTES),
             '{{nb_chambres}}' => (int) ($contexte['maison']['nb_chambres'] ?? 1),
             '{{superficie_m2}}' => htmlspecialchars((string) ($contexte['maison']['superficie_m2'] ?? 0), ENT_QUOTES),
-            '{{titre_foncier}}' => htmlspecialchars($contexte['maison']['titre_foncier'] ?? 'N/A', ENT_QUOTES),
-            '{{date_debut}}' => htmlspecialchars($donnees['date_debut'] ?? date('Y-m-d'), ENT_QUOTES),
-            '{{date_signature}}' => htmlspecialchars(date('d/m/Y'), ENT_QUOTES),
+            '{{titre_foncier}}' => htmlspecialchars($contexte['maison']['titre_foncier_numero'] ?? 'N/A', ENT_QUOTES),
+            '{{date_debut}}' => htmlspecialchars($dateDebut, ENT_QUOTES),
+            '{{date_fin}}' => htmlspecialchars($dateFin, ENT_QUOTES),
+            '{{date_signature}}' => htmlspecialchars($dateSignature ?? date('d/m/Y'), ENT_QUOTES),
             '{{lieu_signature}}' => htmlspecialchars($contexte['maison']['ville'] ?? 'Antananarivo', ENT_QUOTES),
             '{{loyer_mensuel}}' => number_format((float) ($contexte['maison']['loyer_mensuel'] ?? 0), 0, ',', ' '),
             '{{depot_garantie}}' => number_format((float) ($donnees['depot_garantie'] ?? 0), 0, ',', ' '),
@@ -583,11 +809,254 @@ class ContratController extends BaseController
 
     private function templateContratSelonType(string $code): string
     {
-        $base = [
-            'habitation' => "CONTRAT DE BAIL D'HABITATION\nOrdonnance n°62-100 du 1er octobre 1962 — Contrat n° {{numero_contrat}}\n\nEntre les soussignés :\n{{bailleur_nom}} {{bailleur_prenoms}}, titulaire de la CIN n° {{bailleur_cin}}, demeurant à {{bailleur_adresse}}, ci-après dénommé « le Bailleur »,\nD'une part,\nEt {{locataire_nom}} {{locataire_prenoms}}, né(e) le {{locataire_date_naissance}}, titulaire de la CIN n° {{locataire_cin}} délivrée le {{locataire_cin_date}} à {{locataire_cin_lieu}}, exerçant la profession de {{locataire_profession}}, ci-après dénommé « le Preneur »,\nD'autre part,\n\nIl a été convenu et arrêté ce qui suit :\n\nArticle 1 — Objet du contrat\nLe Bailleur donne à bail au Preneur, qui l'accepte, le logement désigné à l'article 2, à usage exclusif d'habitation, conformément à l'Ordonnance n°62-100 du 1er octobre 1962.\n\nArticle 2 — Désignation du bien loué\nLe bien loué est un(e) {{type_bien}} « {{titre_maison}} » situé(e) à {{adresse_maison}}, {{ville}}, comprenant {{nb_chambres}} chambre(s), d'une superficie de {{superficie_m2}} m².\n\nArticle 3 — Durée du bail\nLe bail est conclu pour une durée d'un (1) an à compter du {{date_debut}}, renouvelable par tacite reconduction pour des périodes successives d'un an, sauf congé donné dans les conditions de l'article 10.\n\nArticle 4 — Loyer et charges\nLe loyer mensuel est fixé à {{loyer_mensuel}} Ariary. Il est payable d'avance, au plus tard le cinq (5) de chaque mois. Les charges locatives (eau, électricité, entretien courant) sont à la charge du Preneur.\n\nArticle 5 — Dépôt de garantie\nÀ la signature, le Preneur verse un dépôt de garantie de {{depot_garantie}} Ariary, qui ne peut excéder deux (2) mois de loyer. Il est restitué en fin de bail après état des lieux de sortie.\n\nArticle 6 — Destination et occupation des lieux\nLes lieux sont destinés exclusivement à l'habitation. Toute activité commerciale, artisanale ou professionnelle y est interdite sans avenant préalable. Le logement sera occupé par {{nb_occupants}} personne(s) au maximum.\n\nArticle 7 — Obligations du Bailleur\n• Délivrer le logement en bon état d'usage et de réparation ;\n• Assurer au Preneur la jouissance paisible des lieux ;\n• Effectuer les grosses réparations et celles qui ne sont pas locatives ;\n• Remettre une quittance de loyer à chaque paiement.\n\nArticle 8 — Obligations du Preneur\n• Payer le loyer et les charges aux échéances convenues ;\n• User des lieux en bon père de famille ;\n• Effectuer les réparations locatives et l'entretien courant ;\n• Ne pas transformer les lieux sans accord écrit du Bailleur.\n\nArticle 9 — Sous-location et cession\nToute sous-location, totale ou partielle, ainsi que toute cession du bail, sont interdites sans l'accord écrit et préalable du Bailleur.\n\nArticle 10 — Congé et préavis\nChacune des parties peut mettre fin au bail à l'échéance en notifiant son congé par écrit avec un préavis de trois (3) mois. Le préavis court à compter de la réception de la notification.\n\nArticle 11 — Clause résolutoire\nÀ défaut de paiement d'un seul terme de loyer à son échéance, ou en cas d'inexécution des obligations du présent contrat, celui-ci sera résilié de plein droit, un mois après une mise en demeure restée infructueuse.\n\nArticle 12 — État des lieux\nUn état des lieux contradictoire est dressé à l'entrée et à la sortie du Preneur. À défaut, le logement est présumé remis en bon état de réparations locatives.\n\nArticle 13 — Enregistrement fiscal\nConformément à l'article 02.01.14 du Code Général des Impôts, le présent contrat doit être enregistré dans un délai de deux (2) mois à compter de sa signature. Le droit d'enregistrement applicable est de 1 % du montant total des loyers, soit {{montant_droit_enregistrement}} Ariary. Une fiche fiscale est annexée au présent contrat.\n\nArticle 14 — Élection de domicile et litiges\nPour l'exécution des présentes, les parties font élection de domicile à leurs adresses respectives ci-dessus. Tout litige relève de la compétence des juridictions malgaches.\n\nFait à {{lieu_signature}}, le {{date_signature}}, en deux exemplaires originaux.\n\nLe Bailleur\n(nom et signature)\nLe Preneur\n(nom et signature)",
-            'commercial' => "CONTRAT DE BAIL COMMERCIAL\nLoi n°2015-037 du 8 décembre 2015 — Contrat n° {{numero_contrat}}\n\nEntre les soussignés :\n{{bailleur_nom}} {{bailleur_prenoms}}, titulaire de la CIN n° {{bailleur_cin}}, demeurant à {{bailleur_adresse}}, ci-après dénommé « le Bailleur », D'une part,\nEt {{locataire_nom}} {{locataire_prenoms}}, titulaire de la CIN n° {{locataire_cin}}, exerçant l'activité de {{activite_declaree}}, immatriculé(e) sous le NIF n° {{locataire_nif}} et le STAT n° {{locataire_stat}}, ci-après dénommé « le Preneur », D'autre part,\n\nIl a été convenu et arrêté ce qui suit :\n\nArticle 1 — Objet du contrat\nLe Bailleur donne à bail commercial au Preneur, qui l'accepte, le local désigné à l'article 2, en vue de l'exploitation d'un fonds de commerce, conformément à la Loi n°2015-037 du 8 décembre 2015.\n\nArticle 2 — Désignation du local\nLe local loué est un(e) {{type_bien}} « {{titre_maison}} » situé(e) à {{adresse_maison}}, {{ville}}, d'une superficie de {{superficie_m2}} m².\n\nArticle 3 — Destination et activité autorisée\nLe local est destiné exclusivement à l'activité suivante : {{activite_declaree}}. Toute modification ou extension d'activité requiert l'accord écrit préalable du Bailleur.\n\nArticle 4 — Durée du bail\nLe bail est conclu pour une durée de {{duree_bail}} à compter du {{date_debut}}. À défaut de terme fixé, il est réputé conclu pour une durée indéterminée, sauf congé donné dans les conditions l'article 10.\n\nArticle 5 — Loyer et charges\nLe loyer mensuel est fixé à {{loyer_mensuel}} Ariary, payable d'avance au plus tard le cinq (5) de chaque mois. Les charges locatives (eau, électricité, taxes liées à l'exploitation) sont à la charge du Preneur.\n\nArticle 6 — Pas-de-porte\nLe cas échéant, un droit d'entrée (pas-de-porte) de {{pas_de_porte}} Ariary est versé par le Preneur au Bailleur à la signature. Son montant ne peut excéder l'équivalent de trois (3) mois de loyer.\n\nArticle 7 — Dépôt de garantie\nLe Preneur verse un dépôt de garantie de {{depot_garantie}} Ariary, restitué en fin de bail après état des lieux de sortie et déduction des sommes dues.\n\nArticle 8 — Obligations du Bailleur\n• Délivrer le local en état de servir à l'usage commercial convenu ;\n• Assurer au Preneur la jouissance paisible du local pendant toute la durée du bail ;\n• Effectuer les grosses réparations ;\n• Remettre une quittance de loyer à chaque paiement.\n\nArticle 9 — Obligations du Preneur\n• Payer le loyer, les charges et les impôts liés à son activité ;\n• Exploiter le fonds de commerce de façon continue ;\n• Maintenir son immatriculation fiscale (NIF/STAT) pendant toute la durée du bail ;\n• Entretenir le local et effectuer les réparations locatives ;\n• Souscrire une assurance couvrant le local et l'activité exercée.\n\nArticle 10 — Préavis et résiliation\nPour un bail à durée indéterminée, le congé est notifié par écrit avec un préavis de six (6) mois.\n\nArticle 11 — Droit au renouvellement\nConformément à l'article 29 de la Loi n°2015-037, le Preneur qui a exploité de manière continue son fonds pendant deux (2) ans bénéficie d'un droit au renouvellement du bail, sauf motif grave et légitime opposé par le Bailleur.\n\nArticle 12 — Cession et sous-location\nLa sous-location est interdite sans l'accord écrit du Bailleur. La cession du bail ne peut intervenir qu'avec la cession du fonds de commerce, après information préalable du Bailleur.\n\nArticle 13 — Condition suspensive d'immatriculation\nSi, à la date de signature, le Preneur n'a pas encore communiqué son NIF et son STAT, le présent bail est conclu sous condition suspensive de leur production dans un délai de trente (30) jours. À défaut, le bail est réputé caduc sans indemnité.\n\nArticle 14 — Clause résolutoire\nÀ défaut de paiement d'un seul terme de loyer, ou en cas d'inexécution des obligations du présent contrat, celui-ci sera résilié de plein droit, un mois après une mise en demeure restée sans effet.\n\nArticle 15 — Enregistrement fiscal\nConformément à l'article 02.01.14 du Code Général des Impôts, le contrat doit être enregistré dans un délai de deux (2) mois à compter de sa signature. Le droit d'enregistrement applicable est de 2 % du montant total des loyers, soit {{montant_droit_enregistrement}} Ariary. Une fiche fiscale est annexée au présent contrat.\n\nArticle 16 — Élection de domicile et juridiction compétente\nPour l'exécution des présentes, les parties font élection de domicile à leurs adresses respectives ci-dessus indiquées. Tout litige relatif à l'interprétation ou à l'exécution du présent contrat relève de la compétence des juridictions malgaches.\n\nFait à {{lieu_signature}}, le {{date_signature}}, en deux exemplaires originaux.\n\nLe Bailleur\n(nom et signature)\nLe Preneur\n(nom et signature)",
-            'mixte' => "CONTRAT DE BAIL À USAGE MIXTE\n(Habitation et Activité Commerciale)\n\nDocument généré automatiquement par le module LegalTech — conforme à la Loi n°2015-037 du 8 décembre 2015 et à l'Ordonnance n°62-100 du 1er octobre 1962.\n\nEntre les soussignés :\n{{bailleur_nom}} {{bailleur_prenoms}}, propriétaire du bien désigné ci-après, domicilié(e) à {{bailleur_adresse}}, ci-après dénommé « le Bailleur », D'une part,\nEt {{locataire_nom}} {{locataire_prenoms}}, titulaire de la CIN n° {{locataire_cin}}, exerçant la profession de {{locataire_profession}}, ci-après dénommé « le Preneur », D'autre part,\n\nIl a été convenu et arrêté ce qui suit :\n\nArticle 1 — Objet du contrat\nLe présent contrat a pour objet la location d'un immeuble à usage mixte (habitation et activité commerciale), conformément aux dispositions de la Loi n°2015-037 et de l'Ordonnance n°62-100.\n\nArticle 2 — Désignation du bien loué\nLe bien loué est un(e) {{type_bien}} « {{titre_maison}} » situé(e) à {{adresse_maison}}, {{ville}}, comprenant un espace d'habitation et un local destiné à l'exploitation commerciale, tel que décrit dans la fiche descriptive annexée au présent contrat.\n\nArticle 3 — Durée du bail\nLe présent bail est conclu pour une durée d'un (1) an à compter du {{date_debut}}, renouvelable par tacite reconduction.\n\nArticle 4 — Loyer et charges\nLe loyer mensuel est fixé d'un commun accord entre les parties. Il est payable d'avance, au plus tard le cinq (5) de chaque mois. Les charges locatives (eau, électricité) restent à la charge exclusive du Preneur.\n\nArticle 5 — Dépôt de garantie\nÀ la signature du présent contrat, le Preneur verse au Bailleur un dépôt de garantie équivalent à deux (2) mois de loyer. Ce dépôt est restitué en fin de bail, déduction faite des sommes dues.\n\nArticle 6 — Usage des lieux\nLe Preneur déclare affecter les lieux loués à un usage mixte : d'une part à son habitation personnelle et de sa famille, d'autre part à l'exploitation d'un commerce. Le Preneur s'engage à ne pas modifier la destination des lieux sans l'accord écrit préalable du Bailleur.\n\nArticle 7 — Obligations du Bailleur\n• Délivrer le bien loué en bon état d'usage et de réparation ;\n• Assurer au Preneur la jouissance paisible des lieux pendant toute la durée du bail ;\n• Entretenir les locaux de manière à permettre l'usage mixte prévu au contrat ;\n• Procéder aux réparations autres que locatives.\n\nArticle 8 — Obligations du Preneur\n• Payer le loyer et les charges aux termes convenus ;\n• User des lieux loués en bon père de famille et suivant la destination prévue au contrat ;\n• Ne pas sous-louer ni céder le bail sans l'accord écrit du Bailleur ;\n• Régulariser sa situation fiscale (NIF/STAT) pour l'exercice de son activité commerciale ;\n• Souscrire une assurance couvrant les risques locatifs.\n\nArticle 9 — Droit au renouvellement\nConformément à l'article 29 de la Loi n°2015-037, le Preneur ayant exploité le fonds de commerce de manière continue pendant deux années bénéficie d'un droit au renouvellement du bail, sauf motif grave et légitime opposé par le Bailleur.\n\nArticle 10 — Préavis et résiliation\nEn cas de congé, la notification doit être faite par écrit avec un préavis de six (6) mois. Le présent contrat pourra être résilié de plein droit en cas de non-paiement du loyer ou de manquement grave aux obligations ci-dessus, un mois après une mise en demeure restée infructueuse.\n\nArticle 11 — Clause résolutoire\nÀ défaut de paiement à son échéance d'un seul terme de loyer, ou en cas d'inexécution des clauses et conditions du présent contrat, celui-ci sera résilié de plein droit, un mois après une mise en demeure restée sans effet.\n\nArticle 12 — Enregistrement fiscal\nConformément à l'article 02.01.14 du Code Général des Impôts, le présent contrat doit être enregistré auprès du Centre fiscal compétent dans un délai de deux (2) mois à compter de sa signature. En application de l'article 02.02.12 du CGI, le droit d'enregistrement applicable est fixé à 2 % du montant total des loyers, soit {{montant_droit_enregistrement}} Ariary. Une fiche fiscale est annexée au présent contrat.\n\nArticle 13 — Élection de domicile et juridiction compétente\nPour l'exécution des présentes, les parties font élection de domicile à leurs adresses respectives ci-dessus indiquées. Tout litige relatif à l'interprétation ou à l'exécution du présent contrat relève de la compétence des juridictions malgaches.\n\nFait à {{lieu_signature}}, le {{date_signature}}, en deux exemplaires originaux.",
-        ];
+        $base = [];
+
+        $base['habitation'] = <<<'TXT'
+CONTRAT DE BAIL D'HABITATION
+Ordonnance n°62-100 du 1er octobre 1962 — Contrat n° {{numero_contrat}}
+
+Entre les soussignés :
+{{bailleur_nom}} {{bailleur_prenoms}}, titulaire de la CIN n° {{bailleur_cin}}, demeurant à {{bailleur_adresse}}, ci-après dénommé « le Propriétaire »,
+D'une part,
+Et {{locataire_nom}} {{locataire_prenoms}}, né(e) le {{locataire_date_naissance}}, titulaire de la CIN n° {{locataire_cin}} délivrée le {{locataire_cin_date}} à {{locataire_cin_lieu}}, exerçant la profession de {{locataire_profession}}, ci-après dénommé « le Locataire »,
+D'autre part,
+
+Il a été convenu et arrêté ce qui suit :
+
+Article 1 — Objet du contrat
+Le présent contrat a pour objet de location d'une partie des locaux sis à {{adresse_maison}}, {{ville}}.
+
+Article 2 — Désignation du bien loué
+En considération des conditions et des engagements à respecter par Le Locataire, le Propriétaire loue au Locataire une partie des locaux sur une surface de {{superficie_m2}} mètre carré ({{superficie_m2}} m²).
+
+Article 3 — Durée du bail
+a)- La durée du contrat de bail :
+Le présent contrat prend effet dès sa signature et prend fin 12 mois après sa date de signature. De ce fait, ce présent contrat débute le {{date_debut}} et prend fin le {{date_fin}}.
+b)- Date du début des activités :
+La date de début signifie la date à laquelle le Locataire commencera à s'installer dans les locaux loués.
+c)- Prorogation du contrat :
+Les parties peuvent proroger le contrat par accord mutuel entre les deux parties sous forme manuscrit.
+d)- Option de renouvellement :
+Le propriétaire accorde au Locataire le droit de renouveler le présent contrat de un an. Le Locataire pour exercer l'option de renouvellement, devra adresser une notification écrite au Propriétaire au plus tard 2 mois avant l'expiration du présent contrat de location.
+
+Article 4 — Loyer et charges
+Pour la première année d'activité du Locataire, les parties se sont convenues que le montant à payer est de {{loyer_mensuel}} Ariary par mois. Les charges locatives (eau, électricité, entretien courant) sont à la charge du Locataire.
+Le paiement du loyer doit se faire au plus tard le cinq du mois. à défaut d'omission du paiement, le propriétaire émet un avis verbal au locataire pour régler le paiement. Passé les cinq jours après omission, le locataire n'arrive pas à payer le loyer, le propriétaire est dans son plein droit d'expulser le locataire et de réquisitionner les clés en leur possession.
+
+Article 5 — Dépôt de garantie
+Le Locataire a dans l'obligation de payer au propriétaire une caution de garantie afin de préserver l'état du locale ainsi loué, cette somme est fixé à {{depot_garantie}} Ariary. Dès que le locataire quitte la maison, les deux parties doivent évaluer ensemble, l'ensemble des locaux et si les deux parties sont convenues qu'aucune réparation ne doit se faire, le propriétaire est dans l'obligation de rembourser immédiatement au locataire la somme de la caution.
+
+Article 6 — Destination et occupation des lieux
+Les locaux loués peuvent être occupés et utilisés par le Locataire exclusivement comme maison d'habitation. Aucune disposition du présent contrat n'accorde au Locataire le droit d'utiliser la propriété à une autre fin que celle décrite ci-haut. Par ailleurs, le Locataire ne peut sous louer ou autrement autoriser autrui d'utiliser les locaux.
+Le logement sera occupé par {{nb_occupants}} personne(s) au maximum.
+
+Article 7 — Obligations du Bailleur
+Sauf disposition contraire du présent contrat, et mis à part l'entretien et les remplacements résultant des actes ou omissions des Locataires, le Propriétaire devra réparer tous les défauts et déficiences de tout équipements ou matériels du bâtiment. Le Propriétaire devra préserver les locaux de tels défauts ou déficiences durant le présent contrat.
+• Délivrer le logement en bon état d'usage et de réparation ;
+• Assurer au Locataire la jouissance paisible des lieux ;
+• Remettre une quittance de loyer à chaque paiement.
+
+Article 8 — Obligations du Preneur
+Le Locataire devra réparer et maintenir une bonne condition, sauf usure, les réparations effectuées par le Propriétaire conformément au présent contrat. Le locataire devra aussi effectuer les réparations ou les remplacements nécessaires suite à des actes, des omissions ou de négligence du Locataire, ses employés, agents ou sous-traitants.
+Le Locataire ne permettra pas les gaspillages, les nuisances ou les activités illégales dans les locaux loués.
+Tous les biens personnels, fournitures et équipements ainsi que le mobilier installé par ou aux frais du Locataire ainsi que les ajouts installés dans les locaux loués et utilisés dans les cadres des activités du Locataire aux frais du Locataire et pouvant être enlevés des locaux loués sans dommage. Sauf si ces dommages peuvent réparées par le Locataire, resteront la propriété du Locataire et le Locataire peut mais n'est pas obligé, de les retirer entièrement, ou partie à tout moment pendant la durée du contrat, pourvu que le Locataire effectue les réparations des dommages occasionnés à cet effet à ses propres frais.
+
+Article 9 — Sous-location et cession
+Toute sous-location, totale ou partielle, ainsi que toute cession du bail, sont interdites sans l'accord écrit et préalable du Propriétaire.
+
+Article 10 — Congé et préavis
+Chacune des parties peut mettre fin au bail à l'échéance en notifiant son congé par écrit avec un préavis de trois (3) mois. Le préavis court à compter de la réception de la notification.
+
+Article 11 — Clause résolutoire
+À défaut de paiement d'un seul terme de loyer à son échéance, ou en cas d'inexécution des obligations du présent contrat, celui-ci sera résilié de plein droit, un mois après une mise en demeure restée infructueuse.
+
+Article 12 — État des lieux
+Un état des lieux contradictoire est dressé à l'entrée et à la sortie du Locataire. À défaut, le logement est présumé remis en bon état de réparations locatives.
+
+Article 13 — Enregistrement fiscal
+Conformément à l'article 02.01.14 du Code Général des Impôts, le présent contrat doit être enregistré dans un délai de deux (2) mois à compter de sa signature. Le droit d'enregistrement applicable est de 1 % du montant total des loyers, soit {{montant_droit_enregistrement}} Ariary. Une fiche fiscale est annexée au présent contrat.
+
+Article 14 — Élection de domicile et litiges
+Pour l'exécution des présentes, les parties font élection de domicile à leurs adresses respectives ci-dessus. Tout litige relève de la compétence des juridictions malgaches.
+
+Article 15 — LOI APPLICABLE - JURIDICTION COMPÉTENTE
+Pour tout ce qui n'est pas prévu par le présent contrat, les parties se réfèrent aux dispositions légales applicables en matière de bail aux usages locaux.
+Le présent contrat est soumis tant pour sa validité, son interprétation, que pour son exécution, aux lois et règlements en vigueur à Madagascar.
+Les parties s'engagent à agir de bonne foi dans le respect des droits et obligations réciproques définis aux termes du présent contrat. Elles s'engagent à adopter toutes les mesures raisonnables pour assurer la réalisation du présent Contrat.
+Tout litige entre les parties sera présenté au Tribunal de Commerce compétent d'Antananarivo, après une tentative de conciliation amiable ou par recours à un arbitre consenti par les deux parties.
+EN FOI DE QUOI, les parties ont conclu le présent contrat, qui prend effet dès sa signature.
+
+Fait à {{lieu_signature}}, le {{date_signature}}, en deux exemplaires originaux.
+
+Le Propriétaire
+(nom et signature)
+Le Locataire
+(nom et signature)
+TXT;
+
+        $base['commercial'] = <<<'TXT'
+CONTRAT DE BAIL COMMERCIAL
+Loi n°2015-037 du 8 décembre 2015 — Contrat n° {{numero_contrat}}
+
+Entre les soussignés :
+{{bailleur_nom}} {{bailleur_prenoms}}, titulaire de la CIN n° {{bailleur_cin}}, demeurant à {{bailleur_adresse}}, ci-après dénommé « le Propriétaire », D'une part,
+Et {{locataire_nom}} {{locataire_prenoms}}, titulaire de la CIN n° {{locataire_cin}}, exerçant l'activité de {{activite_declaree}}, immatriculé(e) sous le NIF n° {{locataire_nif}} et le STAT n° {{locataire_stat}}, ci-après dénommé « le Locataire », D'autre part,
+
+Il a été convenu et arrêté ce qui suit :
+
+Article 1 — Objet du contrat
+Le présent contrat a pour objet de location d'une partie des locaux sis à {{adresse_maison}}, {{ville}}.
+
+Article 2 — Désignation du local
+En considération des conditions et des engagements à respecter par Le Locataire, le Propriétaire loue au Locataire une partie des locaux sur une surface de {{superficie_m2}} mètre carré ({{superficie_m2}} m²).
+
+Article 3 — Destination et activité autorisée
+Les locaux loués peuvent être occupés et utilisés par le Locataire exclusivement pour l'activité suivante : {{activite_declaree}}. Aucune disposition du présent contrat n'accorde au Locataire le droit d'utiliser la propriété à une autre fin que celle décrite ci-haut. Par ailleurs, le Locataire ne peut sous louer ou autrement autoriser autrui d'utiliser les locaux.
+Toute modification ou extension d'activité requiert l'accord écrit préalable du Propriétaire.
+
+Article 4 — Durée du bail
+a)- La durée du contrat de bail :
+Le présent contrat prend effet dès sa signature et prend fin 12 mois après sa date de signature. De ce fait, ce présent contrat débute le {{date_debut}} et prend fin le {{date_fin}}.
+b)- Date du début des activités :
+La date de début signifie la date à laquelle le Locataire commencera à s'installer dans les locaux loués.
+c)- Prorogation du contrat :
+Les parties peuvent proroger le contrat par accord mutuel entre les deux parties sous forme manuscrit.
+
+Article 5 — Loyer et charges
+Pour la première année d'activité du Locataire, les parties se sont convenues que le montant à payer est de {{loyer_mensuel}} Ariary par mois. Les charges locatives (eau, électricité, taxes liées à l'exploitation) sont à la charge du Locataire.
+Le paiement du loyer doit se faire au plus tard le cinq du mois. à défaut d'omission du paiement, le propriétaire émet un avis verbal au locataire pour régler le paiement. Passé les cinq jours après omission, le locataire n'arrive pas à payer le loyer, le propriétaire est dans son plein droit d'expulser le locataire et de réquisitionner les clés en leur possession.
+
+Article 6 — Pas-de-porte
+Le cas échéant, un droit d'entrée (pas-de-porte) de {{pas_de_porte}} Ariary est versé par le Locataire au Propriétaire à la signature. Son montant ne peut excéder l'équivalent de trois (3) mois de loyer.
+
+Article 7 — Dépôt de garantie
+Le Locataire a dans l'obligation de payer au propriétaire une caution de garantie afin de préserver l'état du locale ainsi loué, cette somme est fixé à {{depot_garantie}} Ariary. Dès que le locataire quitte la maison, les deux parties doivent évaluer ensemble, l'ensemble des locaux et si les deux parties sont convenues qu'aucune réparation ne doit se faire, le propriétaire est dans l'obligation de rembourser immédiatement au locataire la somme de la caution.
+
+Article 8 — Obligations du Bailleur
+Sauf disposition contraire du présent contrat, et mis à part l'entretien et les remplacements résultant des actes ou omissions des Locataires, le Propriétaire devra réparer tous les défauts et déficiences de tout équipements ou matériels du bâtiment. Le Propriétaire devra préserver les locaux de tels défauts ou déficiences durant le présent contrat.
+• Délivrer le local en état de servir à l'usage commercial convenu ;
+• Assurer au Locataire la jouissance paisible du local pendant toute la durée du bail ;
+• Remettre une quittance de loyer à chaque paiement.
+
+Article 9 — Obligations du Preneur
+Le Locataire devra réparer et maintenir une bonne condition, sauf usure, les réparations effectuées par le Propriétaire conformément au présent contrat. Le locataire devra aussi effectuer les réparations ou les remplacements nécessaires suite à des actes, des omissions ou de négligence du Locataire, ses employés, agents ou sous-traitants.
+Le Locataire ne permettra pas les gaspillages, les nuisances ou les activités illégales dans les locaux loués.
+Tous les biens personnels, fournitures et équipements ainsi que le mobilier installé par ou aux frais du Locataire ainsi que les ajouts installés dans les locaux loués et utilisés dans les cadres des activités du Locataire aux frais du Locataire et pouvant être enlevés des locaux loués sans dommage. Sauf si ces dommages peuvent réparées par le Locataire, resteront la propriété du Locataire et le Locataire peut mais n'est pas obligé, de les retirer entièrement, ou partie à tout moment pendant la durée du contrat, pourvu que le Locataire effectue les réparations des dommages occasionnés à cet effet à ses propres frais.
+• Payer les impôts liés à son activité ;
+• Exploiter le fonds de commerce de façon continue ;
+• Maintenir son immatriculation fiscale (NIF/STAT) pendant toute la durée du bail ;
+• Souscrire une assurance couvrant le local et l'activité exercée.
+
+Article 10 — Préavis et résiliation
+Pour un bail à durée indéterminée, le congé est notifié par écrit avec un préavis de six (6) mois.
+
+Article 11 — Droit au renouvellement
+Le propriétaire accorde au Locataire le droit de renouveler le présent contrat de un an. Le Locataire pour exercer l'option de renouvellement, devra adresser une notification écrite au Propriétaire au plus tard 2 mois avant l'expiration du présent contrat de location.
+Conformément à l'article 29 de la Loi n°2015-037, le Locataire qui a exploité de manière continue son fonds pendant deux (2) ans bénéficie d'un droit au renouvellement du bail, sauf motif grave et légitime opposé par le Propriétaire.
+
+Article 12 — Cession et sous-location
+La sous-location est interdite sans l'accord écrit du Propriétaire. La cession du bail ne peut intervenir qu'avec la cession du fonds de commerce, après information préalable du Propriétaire.
+
+Article 13 — Condition suspensive d'immatriculation
+Si, à la date de signature, le Locataire n'a pas encore communiqué son NIF et son STAT, le présent bail est conclu sous condition suspensive de leur production dans un délai de trente (30) jours. À défaut, le bail est réputé caduc sans indemnité.
+
+Article 14 — Clause résolutoire
+À défaut de paiement d'un seul terme de loyer, ou en cas d'inexécution des obligations du présent contrat, celui-ci sera résilié de plein droit, un mois après une mise en demeure restée sans effet.
+
+Article 15 — Enregistrement fiscal
+Conformément à l'article 02.01.14 du Code Général des Impôts, le contrat doit être enregistré dans un délai de deux (2) mois à compter de sa signature. Le droit d'enregistrement applicable est de 2 % du montant total des loyers, soit {{montant_droit_enregistrement}} Ariary. Une fiche fiscale est annexée au présent contrat.
+
+Article 16 — Élection de domicile et juridiction compétente
+Pour l'exécution des présentes, les parties font élection de domicile à leurs adresses respectives ci-dessus indiquées. Tout litige relatif à l'interprétation ou à l'exécution du présent contrat relève de la compétence des juridictions malgaches.
+
+Article 17 — LOI APPLICABLE - JURIDICTION COMPÉTENTE
+Pour tout ce qui n'est pas prévu par le présent contrat, les parties se réfèrent aux dispositions légales applicables en matière de bail aux usages locaux.
+Le présent contrat est soumis tant pour sa validité, son interprétation, que pour son exécution, aux lois et règlements en vigueur à Madagascar.
+Les parties s'engagent à agir de bonne foi dans le respect des droits et obligations réciproques définis aux termes du présent contrat. Elles s'engagent à adopter toutes les mesures raisonnables pour assurer la réalisation du présent Contrat.
+Tout litige entre les parties sera présenté au Tribunal de Commerce compétent d'Antananarivo, après une tentative de conciliation amiable ou par recours à un arbitre consenti par les deux parties.
+EN FOI DE QUOI, les parties ont conclu le présent contrat, qui prend effet dès sa signature.
+
+Fait à {{lieu_signature}}, le {{date_signature}}, en deux exemplaires originaux.
+
+Le Propriétaire
+(nom et signature)
+Le Locataire
+(nom et signature)
+TXT;
+
+        $base['mixte'] = <<<'TXT'
+CONTRAT DE BAIL À USAGE MIXTE
+(Habitation et Activité Commerciale)
+
+Document généré automatiquement par le module LegalTech — conforme à la Loi n°2015-037 du 8 décembre 2015 et à l'Ordonnance n°62-100 du 1er octobre 1962.
+
+Entre les soussignés :
+{{bailleur_nom}} {{bailleur_prenoms}}, propriétaire du bien désigné ci-après, domicilié(e) à {{bailleur_adresse}}, ci-après dénommé « le Propriétaire », D'une part,
+Et {{locataire_nom}} {{locataire_prenoms}}, titulaire de la CIN n° {{locataire_cin}}, exerçant la profession de {{locataire_profession}}, ci-après dénommé « le Locataire », D'autre part,
+
+Il a été convenu et arrêté ce qui suit :
+
+Article 1 — Objet du contrat
+Le présent contrat a pour objet de location d'une partie des locaux sis à {{adresse_maison}}, {{ville}}.
+
+Article 2 — Désignation du bien loué
+En considération des conditions et des engagements à respecter par Le Locataire, le Propriétaire loue au Locataire une partie des locaux sur une surface de {{superficie_m2}} mètre carré ({{superficie_m2}} m²).
+
+Article 3 — Durée du bail
+a)- La durée du contrat de bail :
+Le présent contrat prend effet dès sa signature et prend fin 12 mois après sa date de signature. De ce fait, ce présent contrat débute le {{date_debut}} et prend fin le {{date_fin}}.
+b)- Date du début des activités :
+La date de début signifie la date à laquelle le Locataire commencera à s'installer dans les locaux loués.
+c)- Prorogation du contrat :
+Les parties peuvent proroger le contrat par accord mutuel entre les deux parties sous forme manuscrit.
+
+Article 4 — Loyer et charges
+Pour la première année d'activité du Locataire, les parties se sont convenues que le montant à payer est de {{loyer_mensuel}} Ariary par mois. Les charges locatives (eau, électricité) restent à la charge exclusive du Locataire.
+Le paiement du loyer doit se faire au plus tard le cinq du mois. à défaut d'omission du paiement, le propriétaire émet un avis verbal au locataire pour régler le paiement. Passé les cinq jours après omission, le locataire n'arrive pas à payer le loyer, le propriétaire est dans son plein droit d'expulser le locataire et de réquisitionner les clés en leur possession.
+
+Article 5 — Dépôt de garantie
+Le Locataire a dans l'obligation de payer au propriétaire une caution de garantie afin de préserver l'état du locale ainsi loué, cette somme est fixé à {{depot_garantie}} Ariary. Dès que le locataire quitte la maison, les deux parties doivent évaluer ensemble, l'ensemble des locaux et si les deux parties sont convenues qu'aucune réparation ne doit se faire, le propriétaire est dans l'obligation de rembourser immédiatement au locataire la somme de la caution.
+
+Article 6 — Usage des lieux
+Les locaux loués peuvent être occupés et utilisés par le Locataire à un usage mixte : d'une part comme maison d'habitation, d'autre part à l'exploitation d'un commerce. Aucune disposition du présent contrat n'accorde au Locataire le droit d'utiliser la propriété à une autre fin que celle décrite ci-haut. Par ailleurs, le Locataire ne peut sous louer ou autrement autoriser autrui d'utiliser les locaux.
+
+Article 7 — Obligations du Bailleur
+Sauf disposition contraire du présent contrat, et mis à part l'entretien et les remplacements résultant des actes ou omissions des Locataires, le Propriétaire devra réparer tous les défauts et déficiences de tout équipements ou matériels du bâtiment. Le Propriétaire devra préserver les locaux de tels défauts ou déficiences durant le présent contrat.
+• Délivrer le bien loué en bon état d'usage et de réparation ;
+• Assurer au Locataire la jouissance paisible des lieux pendant toute la durée du bail.
+
+Article 8 — Obligations du Preneur
+Le Locataire devra réparer et maintenir une bonne condition, sauf usure, les réparations effectuées par le Propriétaire conformément au présent contrat. Le locataire devra aussi effectuer les réparations ou les remplacements nécessaires suite à des actes, des omissions ou de négligence du Locataire, ses employés, agents ou sous-traitants.
+Le Locataire ne permettra pas les gaspillages, les nuisances ou les activités illégales dans les locaux loués.
+Tous les biens personnels, fournitures et équipements ainsi que le mobilier installé par ou aux frais du Locataire ainsi que les ajouts installés dans les locaux loués et utilisés dans les cadres des activités du Locataire aux frais du Locataire et pouvant être enlevés des locaux loués sans dommage. Sauf si ces dommages peuvent réparées par le Locataire, resteront la propriété du Locataire et le Locataire peut mais n'est pas obligé, de les retirer entièrement, ou partie à tout moment pendant la durée du contrat, pourvu que le Locataire effectue les réparations des dommages occasionnés à cet effet à ses propres frais.
+• Régulariser sa situation fiscale (NIF/STAT) pour l'exercice de son activité commerciale ;
+• Souscrire une assurance couvrant les risques locatifs.
+
+Article 9 — Droit au renouvellement
+Le propriétaire accorde au Locataire le droit de renouveler le présent contrat de un an. Le Locataire pour exercer l'option de renouvellement, devra adresser une notification écrite au Propriétaire au plus tard 2 mois avant l'expiration du présent contrat de location.
+Conformément à l'article 29 de la Loi n°2015-037, le Locataire ayant exploité le fonds de commerce de manière continue pendant deux années bénéficie d'un droit au renouvellement du bail, sauf motif grave et légitime opposé par le Propriétaire.
+
+Article 10 — Préavis et résiliation
+En cas de congé, la notification doit être faite par écrit avec un préavis de six (6) mois.
+
+Article 11 — Clause résolutoire
+À défaut de paiement à son échéance d'un seul terme de loyer, ou en cas d'inexécution des clauses et conditions du présent contrat, celui-ci sera résilié de plein droit, un mois après une mise en demeure restée sans effet.
+
+Article 12 — Enregistrement fiscal
+Conformément à l'article 02.01.14 du Code Général des Impôts, le présent contrat doit être enregistré auprès du Centre fiscal compétent dans un délai de deux (2) mois à compter de sa signature. En application de l'article 02.02.12 du CGI, le droit d'enregistrement applicable est fixé à 2 % du montant total des loyers, soit {{montant_droit_enregistrement}} Ariary. Une fiche fiscale est annexée au présent contrat.
+
+Article 13 — Élection de domicile et juridiction compétente
+Pour l'exécution des présentes, les parties font élection de domicile à leurs adresses respectives ci-dessus indiquées. Tout litige relatif à l'interprétation ou à l'exécution du présent contrat relève de la compétence des juridictions malgaches.
+
+Article 14 — LOI APPLICABLE - JURIDICTION COMPÉTENTE
+Pour tout ce qui n'est pas prévu par le présent contrat, les parties se réfèrent aux dispositions légales applicables en matière de bail aux usages locaux.
+Le présent contrat est soumis tant pour sa validité, son interprétation, que pour son exécution, aux lois et règlements en vigueur à Madagascar.
+Les parties s'engagent à agir de bonne foi dans le respect des droits et obligations réciproques définis aux termes du présent contrat. Elles s'engagent à adopter toutes les mesures raisonnables pour assurer la réalisation du présent Contrat.
+Tout litige entre les parties sera présenté au Tribunal de Commerce compétent d'Antananarivo, après une tentative de conciliation amiable ou par recours à un arbitre consenti par les deux parties.
+EN FOI DE QUOI, les parties ont conclu le présent contrat, qui prend effet dès sa signature.
+
+Fait à {{lieu_signature}}, le {{date_signature}}, en deux exemplaires originaux.
+TXT;
 
         return $base[$code] ?? $base['habitation'];
     }
@@ -703,6 +1172,9 @@ class ContratController extends BaseController
         $adresseMaison = $contrat['maison_adresse'] ?? 'Antananarivo';
         $titreMaison = $contrat['maison_titre'] ?? 'Maison';
         $dateDebut = $contrat['date_debut'] ?? date('Y-m-d');
+        $dateFin = ! empty($contrat['date_fin'])
+            ? $contrat['date_fin']
+            : date('Y-m-d', strtotime($dateDebut . ' +1 year'));
         $dateSignature = date('d/m/Y');
         $montantDroit = (float) ($contrat['montant_droit_enregistrement'] ?? 0);
 
@@ -723,9 +1195,10 @@ class ContratController extends BaseController
             '{nb_chambres}' => $contrat['nb_chambres'] ?? 1,
             '{superficie_m2}' => $contrat['superficie_m2'] ?? 0,
             '{date_debut}' => $dateDebut,
-            '{loyer_mensuel}' => number_format((float) ($contrat['loyer_maison'] ?? ($contrat['loyer_mensuel'] ?? 0)), 0, ',', ' ') . ' Ariary',
-            '{depot_garantie}' => number_format((float) ($contrat['depot_garantie'] ?? 0), 0, ',', ' ') . ' Ariary',
-            '{montant_droit_enregistrement}' => number_format($montantDroit, 0, ',', ' ') . ' Ariary',
+            '{date_fin}' => $dateFin,
+            '{loyer_mensuel}' => number_format((float) ($contrat['loyer_maison'] ?? ($contrat['loyer_mensuel'] ?? 0)), 0, ',', ' '),
+            '{depot_garantie}' => number_format((float) ($contrat['depot_garantie'] ?? 0), 0, ',', ' '),
+            '{montant_droit_enregistrement}' => number_format($montantDroit, 0, ',', ' '),
             '{lieu_signature}' => $contrat['ville'] ?? ($contrat['maison_ville'] ?? 'Antananarivo'),
             '{date_signature}' => $dateSignature,
             '{nb_occupants}' => $contrat['nb_occupants'] ?? 1,
@@ -742,13 +1215,8 @@ class ContratController extends BaseController
             '{type_contrat}' => $contrat['type_libelle'] ?? 'Bail',
         ];
 
-        $templates = [
-            'habitation' => "CONTRAT DE BAIL D'HABITATION\nOrdonnance n°62-100 du 1er octobre 1962 — Contrat n° {numero_contrat}\n\nEntre les soussignés :\n{bailleur}, titulaire de la CIN n° {bailleur_cin}, demeurant à {bailleur_adresse}, ci-après dénommé « le Bailleur »,\nD'une part,\nEt {locataire}, né(e) le {locataire_date_naissance}, titulaire de la CIN n° {locataire_cin}, délivrée le {locataire_cin_date} à {locataire_cin_lieu}, exerçant la profession de {locataire_profession}, ci-après dénommé « le Preneur »,\nD'autre part,\n\nIl a été convenu et arrêté ce qui suit :\n\nArticle 1 — Objet du contrat\nLe Bailleur donne à bail au Preneur, qui l'accepte, le logement désigné à l'article 2, à usage exclusif d'habitation, conformément à l'Ordonnance n°62-100 du 1er octobre 1962.\n\nArticle 2 — Désignation du bien loué\nLe bien loué est un(e) {type_bien} « {titre_maison} » situé(e) à {adresse_maison}, comprenant {nb_chambres} chambre(s), d'une superficie de {superficie_m2} m².\n\nArticle 3 — Durée du bail\nLe bail est conclu pour une durée d'un (1) an à compter du {date_debut}.\n\nArticle 4 — Loyer et charges\nLe loyer mensuel est fixé à {loyer_mensuel} Ariary. Il est payable d'avance, au plus tard le cinq (5) de chaque mois. Les charges locatives (eau, électricité, entretien courant) sont à la charge du Preneur.\n\nArticle 5 — Dépôt de garantie\nÀ la signature, le Preneur verse un dépôt de garantie de {depot_garantie} Ariary, qui ne peut excéder deux (2) mois de loyer. Il est restitué en fin de bail après état des lieux de sortie.\n\nArticle 6 — Destination et occupation des lieux\nLes lieux sont destinés exclusivement à l'habitation. Toute activité commerciale, artisanale ou professionnelle y est interdite sans avenant préalable. Le logement sera occupé par {nb_occupants} personne(s) au maximum.\n\nArticle 7 — Obligations du Bailleur\n• Délivrer le logement en bon état d'usage et de réparation ;\n• Assurer au Preneur la jouissance paisible des lieux ;\n• Effectuer les grosses réparations et celles qui ne sont pas locatives ;\n• Remettre une quittance de loyer à chaque paiement.\n\nArticle 8 — Obligations du Preneur\n• Payer le loyer et les charges aux échéances convenues ;\n• User des lieux en bon père de famille ;\n• Effectuer les réparations locatives et l'entretien courant ;\n• Ne pas transformer les lieux sans accord écrit du Bailleur.\n\nArticle 9 — Sous-location et cession\nToute sous-location, totale ou partielle, ainsi que toute cession du bail, sont interdites sans l'accord écrit et préalable du Bailleur.\n\nArticle 10 — Congé et préavis\nChacune des parties peut mettre fin au bail à l'échéance en notifiant son congé par écrit avec un préavis de trois (3) mois. Le préavis court à compter de la réception de la notification.\n\nArticle 11 — Clause résolutoire\nÀ défaut de paiement d'un seul terme de loyer à son échéance, ou en cas d'inexécution des obligations du présent contrat, celui-ci sera résilié de plein droit, un mois après une mise en demeure restée infructueuse.\n\nArticle 12 — État des lieux\nUn état des lieux contradictoire est dressé à l'entrée et à la sortie du Preneur. À défaut, le logement est présumé remis en bon état de réparations locatives.\n\nArticle 13 — Enregistrement fiscal\nConformément à l'article 02.01.14 du Code Général des Impôts, le présent contrat doit être enregistré dans un délai de deux (2) mois à compter de sa signature. Le droit d'enregistrement applicable est de 1 % du montant total des loyers, soit {montant_droit_enregistrement} Ariary. Une fiche fiscale est annexée au présent contrat.\n\nArticle 14 — Élection de domicile et litiges\nPour l'exécution des présentes, les parties font élection de domicile à leurs adresses respectives ci-dessus. Tout litige relève de la compétence des juridictions malgaches.\n\nFait à {lieu_signature}, le {date_signature}, en deux exemplaires originaux.\n\nLe Bailleur\n(nom et signature)\nLe Preneur\n(nom et signature)",
-            'commercial' => "CONTRAT DE BAIL COMMERCIAL\nLoi n°2015-037 du 8 décembre 2015 — Contrat n° {numero_contrat}\n\nEntre les soussignés :\n{bailleur}, titulaire de la CIN n° {bailleur_cin}, demeurant à {bailleur_adresse}, ci-après dénommé « le Bailleur », D'une part,\nEt {locataire}, titulaire de la CIN n° {locataire_cin}, exerçant l'activité de {activite_declaree}, immatriculé(e) sous le NIF n° {locataire_nif} et le STAT n° {locataire_stat}, ci-après dénommé « le Preneur », D'autre part,\n\nIl a été convenu et arrêté ce qui suit :\n\nArticle 1 — Objet du contrat\nLe Bailleur donne à bail commercial au Preneur, qui l'accepte, le local désigné à l'article 2, en vue de l'exploitation d'un fonds de commerce, conformément à la Loi n°2015-037 du 8 décembre 2015.\n\nArticle 2 — Désignation du local\nLe local loué est un(e) {type_bien} « {titre_maison} » situé(e) à {adresse_maison}, d'une superficie de {superficie_m2} m².\n\nArticle 3 — Destination et activité autorisée\nLe local est destiné exclusivement à l'activité suivante : {activite_declaree}. Toute modification ou extension d'activité requiert l'accord écrit préalable du Bailleur.\n\nArticle 4 — Durée du bail\nLe bail est conclu pour une durée de {duree_bail} à compter du {date_debut}.\n\nArticle 5 — Loyer et charges\nLe loyer mensuel est fixé à {loyer_mensuel} Ariary, payable d'avance au plus tard le cinq (5) de chaque mois. Les charges locatives (eau, électricité, taxes liées à l'exploitation) sont à la charge du Preneur.\n\nArticle 6 — Pas-de-porte\nLe cas échéant, un droit d'entrée (pas-de-porte) de {pas_de_porte} Ariary est versé par le Preneur au Bailleur à la signature. Son montant ne peut excéder l'équivalent de trois (3) mois de loyer.\n\nArticle 7 — Dépôt de garantie\nLe Preneur verse un dépôt de garantie de {depot_garantie} Ariary, restitué en fin de bail après état des lieux de sortie et déduction des sommes dues.\n\nArticle 8 — Obligations du Bailleur\n• Délivrer le local en état de servir à l'usage commercial convenu ;\n• Assurer au Preneur la jouissance paisible du local pendant toute la durée du bail ;\n• Effectuer les grosses réparations ;\n• Remettre une quittance de loyer à chaque paiement.\n\nArticle 9 — Obligations du Preneur\n• Payer le loyer, les charges et les impôts liés à son activité ;\n• Exploiter le fonds de commerce de façon continue ;\n• Maintenir son immatriculation fiscale (NIF/STAT) pendant toute la durée du bail ;\n• Entretenir le local et effectuer les réparations locatives ;\n• Souscrire une assurance couvrant le local et l'activité exercée.\n\nArticle 10 — Préavis et résiliation\nPour un bail à durée indéterminée, le congé est notifié par écrit avec un préavis de six (6) mois.\n\nArticle 11 — Droit au renouvellement\nConformément à l'article 29 de la Loi n°2015-037, le Preneur qui a exploité de manière continue son fonds pendant deux (2) ans bénéficie d'un droit au renouvellement du bail, sauf motif grave et légitime opposé par le Bailleur.\n\nArticle 12 — Cession et sous-location\nLa sous-location est interdite sans l'accord écrit du Bailleur. La cession du bail ne peut intervenir qu'avec la cession du fonds de commerce, après information préalable du Bailleur.\n\nArticle 13 — Condition suspensive d'immatriculation\nSi, à la date de signature, le Preneur n'a pas encore communiqué son NIF et son STAT, le présent bail est conclu sous condition suspensive de leur production dans un délai de trente (30) jours. À défaut, le bail est réputé caduc sans indemnité.\n\nArticle 14 — Clause résolutoire\nÀ défaut de paiement d'un seul terme de loyer, ou en cas d'inexécution des obligations du présent contrat, celui-ci sera résilié de plein droit, un mois après une mise en demeure restée sans effet.\n\nArticle 15 — Enregistrement fiscal\nConformément à l'article 02.01.14 du Code Général des Impôts, le contrat doit être enregistré dans un délai de deux (2) mois à compter de sa signature. Le droit d'enregistrement applicable est de 2 % du montant total des loyers, soit {montant_droit_enregistrement} Ariary. Une fiche fiscale est annexée au présent contrat.\n\nArticle 16 — Élection de domicile et juridiction compétente\nPour l'exécution des présentes, les parties font élection de domicile à leurs adresses respectives ci-dessus indiquées. Tout litige relatif à l'interprétation ou à l'exécution du présent contrat relève de la compétence des juridictions malgaches.\n\nFait à {lieu_signature}, le {date_signature}, en deux exemplaires originaux.\n\nLe Bailleur\n(nom et signature)\nLe Preneur\n(nom et signature)",
-            'mixte' => "CONTRAT DE BAIL À USAGE MIXTE\n(Habitation et Activité Commerciale)\n\nDocument généré automatiquement par le module LegalTech — conforme à la Loi n°2015-037 du 8 décembre 2015 et à l'Ordonnance n°62-100 du 1er octobre 1962.\n\nEntre les soussignés :\n{bailleur_nom} {bailleur_prenoms}, propriétaire du bien désigné ci-après, domicilié(e) à {bailleur_adresse}, ci-après dénommé « le Bailleur », D'une part,\nEt {locataire_nom} {locataire_prenoms}, titulaire de la CIN n° {locataire_cin}, exerçant la profession de {locataire_profession}, ci-après dénommé « le Preneur », D'autre part,\n\nIl a été convenu et arrêté ce qui suit :\n\nArticle 1 — Objet du contrat\nLe présent contrat a pour objet la location d'un immeuble à usage mixte (habitation et activité commerciale), conformément aux dispositions de la Loi n°2015-037 et de l'Ordonnance n°62-100.\n\nArticle 2 — Désignation du bien loué\nLe bien loué est un(e) {type_bien} « {titre_maison} » situé(e) à {adresse_maison}, {ville}, comprenant un espace d'habitation et un local destiné à l'exploitation commerciale, tel que décrit dans la fiche descriptive annexée au présent contrat.\n\nArticle 3 — Durée du bail\nLe présent bail est conclu pour une durée d'un (1) an à compter du {date_debut}, renouvelable par tacite reconduction.\n\nArticle 4 — Loyer et charges\nLe loyer mensuel est fixé d'un commun accord entre les parties. Il est payable d'avance, au plus tard le cinq (5) de chaque mois. Les charges locatives (eau, électricité) restent à la charge exclusive du Preneur.\n\nArticle 5 — Dépôt de garantie\nÀ la signature du présent contrat, le Preneur verse au Bailleur un dépôt de garantie équivalent à deux (2) mois de loyer. Ce dépôt est restitué en fin de bail, déduction faite des sommes dues.\n\nArticle 6 — Usage des lieux\nLe Preneur déclare affecter les lieux loués à un usage mixte : d'une part à son habitation personnelle et de sa famille, d'autre part à l'exploitation d'un commerce. Le Preneur s'engage à ne pas modifier la destination des lieux sans l'accord écrit préalable du Bailleur.\n\nArticle 7 — Obligations du Bailleur\n• Délivrer le bien loué en bon état d'usage et de réparation ;\n• Assurer au Preneur la jouissance paisible des lieux pendant toute la durée du bail ;\n• Entretenir les locaux de manière à permettre l'usage mixte prévu au contrat ;\n• Procéder aux réparations autres que locatives.\n\nArticle 8 — Obligations du Preneur\n• Payer le loyer et les charges aux termes convenus ;\n• User des lieux loués en bon père de famille et suivant la destination prévue au contrat ;\n• Ne pas sous-louer ni céder le bail sans l'accord écrit du Bailleur ;\n• Régulariser sa situation fiscale (NIF/STAT) pour l'exercice de son activité commerciale ;\n• Souscrire une assurance couvrant les risques locatifs.\n\nArticle 9 — Droit au renouvellement\nConformément à l'article 29 de la Loi n°2015-037, le Preneur ayant exploité le fonds de commerce de manière continue pendant deux années bénéficie d'un droit au renouvellement du bail, sauf motif grave et légitime opposé par le Bailleur.\n\nArticle 10 — Préavis et résiliation\nEn cas de congé, la notification doit être faite par écrit avec un préavis de six (6) mois. Le présent contrat pourra être résilié de plein droit en cas de non-paiement du loyer ou de manquement grave aux obligations ci-dessus, un mois après une mise en demeure restée infructueuse.\n\nArticle 11 — Clause résolutoire\nÀ défaut de paiement à son échéance d'un seul terme de loyer, ou en cas d'inexécution des clauses et conditions du présent contrat, celui-ci sera résilié de plein droit, un mois après une mise en demeure restée sans effet.\n\nArticle 12 — Enregistrement fiscal\nConformément à l'article 02.01.14 du Code Général des Impôts, le présent contrat doit être enregistré auprès du Centre fiscal compétent dans un délai de deux (2) mois à compter de sa signature. En application de l'article 02.02.12 du CGI, le droit d'enregistrement applicable est fixé à 2 % du montant total des loyers, soit {montant_droit_enregistrement} Ariary. Une fiche fiscale est annexée au présent contrat.\n\nArticle 13 — Élection de domicile et juridiction compétente\nPour l'exécution des présentes, les parties font élection de domicile à leurs adresses respectives ci-dessus indiquées. Tout litige relatif à l'interprétation ou à l'exécution du présent contrat relève de la compétence des juridictions malgaches.\n\nFait à {lieu_signature}, le {date_signature}, en deux exemplaires originaux.",
-        ];
-
-        $modele = str_replace(['{{', '}}'], ['{', '}'], $templates[$typeCode] ?? $templates['habitation']);
+        // Source unique : les mêmes modèles que pour le PDF généré.
+        $modele = str_replace(['{{', '}}'], ['{', '}'], $this->templateContratSelonType($typeCode));
 
         return strtr($modele, $replace);
     }
