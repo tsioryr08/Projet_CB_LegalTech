@@ -29,6 +29,15 @@
 
     <div class="card mb-3">
         <div class="card-body">
+            <h5>Contrat de bail</h5>
+            <div style="white-space: pre-line; font-family: serif; line-height: 1.8; background:#f8f9fa; padding:1.5rem; border-radius:0.5rem;">
+                <?= nl2br(esc($texte_contrat ?? '')) ?>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
             <p class="mb-1"><strong>Statut :</strong> <?= esc($statut) ?></p>
             <p class="mb-1"><strong>Propriétaire :</strong> <?= esc(trim(($proprietaire_prenoms ?? '') . ' ' . ($proprietaire_nom ?? ''))) ?></p>
             <p class="mb-1"><strong>Usage :</strong> <?= esc($type_code ?? '') ?></p>

@@ -17,6 +17,15 @@ class AvenantModel extends Model
         'contenu_hash_sha256',
     ];
 
+    public function numeroSuivantPourContrat(int $idContrat): int
+    {
+        $dernier = $this->where('id_contrat', $idContrat)
+            ->orderBy('numero_avenant', 'DESC')
+            ->first();
+
+        return (int) (($dernier['numero_avenant'] ?? 0) + 1);
+    }
+
     public function pourContrat(int $idContrat): array
     {
         return $this->where('id_contrat', $idContrat)->orderBy('numero_avenant', 'DESC')->findAll();

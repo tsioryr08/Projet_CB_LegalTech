@@ -30,6 +30,15 @@
 
     <div class="card mb-4">
         <div class="card-body">
+            <h5>Contrat de bail</h5>
+            <div style="white-space: pre-line; font-family: serif; line-height: 1.8; background:#f8f9fa; padding:1.5rem; border-radius:0.5rem;">
+                <?= nl2br(esc($texte_contrat ?? '')) ?>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
             <h5>Résumé fiscal</h5>
             <ul class="mb-0">
                 <li>Loyer mensuel : <?= number_format((float) $loyer_mensuel, 0, ',', ' ') ?> Ar</li>

@@ -240,7 +240,7 @@ class MoteurLegaltechService
             return null;
         }
 
-        return ((int) $cin[5]) % 2 === 0 ? 'M' : 'F';
+        return ((int) $cin[5]) % 2 === 0 ? 'F' : 'M';
     }
 
     private function ageDepuisDate(?string $date): ?int
