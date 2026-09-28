@@ -185,68 +185,192 @@ class ContratController extends BaseController
         return view('client/contrat', $contrat);
     }
 
-    public function proposerAvenant(int $idContrat)
+    public function signerBailleur(int $idContrat)
     {
         $contrat = $this->chargerContratAccessible($idContrat, (int) session('id_utilisateur'), 'proprietaire');
         if ($contrat === null) {
             return redirect()->to('/proprietaire/contrats')->with('erreur', 'Contrat introuvable.');
         }
 
-        $typeAvenant = $this->request->getPost('type_avenant') ?: 'autre';
-        $champModifie = trim((string) $this->request->getPost('champ_modifie') ?: 'autre');
-        $ancienneValeur = trim((string) $this->request->getPost('ancienne_valeur') ?? '');
-        $nouvelleValeur = trim((string) $this->request->getPost('nouvelle_valeur') ?? '');
-        $justification = trim((string) $this->request->getPost('justification') ?? '');
-        $dateEffet = $this->request->getPost('date_effet') ?: date('Y-m-d');
+        $signatureModel = new SignatureModel();
+        $signatureExistante = $signatureModel
+            ->where('id_contrat', $idContrat)
+            ->where('role_signataire', 'bailleur')
+            ->first();
 
-        $avenantModel = new AvenantModel();
-        $numeroAvenant = $avenantModel->numeroSuivantPourContrat($idContrat);
-
-        $contenuAvenant = [
-            'AVENANT N° ' . $numeroAvenant,
-            'Contrat n° ' . ($contrat['numero_contrat'] ?? 'N/A'),
-            'Type : ' . $typeAvenant,
-            'Champ modifié : ' . $champModifie,
-            'Ancienne valeur : ' . ($ancienneValeur !== '' ? $ancienneValeur : '—'),
-            'Nouvelle valeur : ' . ($nouvelleValeur !== '' ? $nouvelleValeur : '—'),
-            'Justification : ' . ($justification !== '' ? $justification : '—'),
-            'Date d’effet : ' . $dateEffet,
-        ];
-
-        $pdfService = new ContratPdfService();
-        $pdfPath = 'uploads/avenants/' . date('Y') . '/' . $contrat['numero_contrat'] . '-A-' . $numeroAvenant . '.pdf';
-        $pdf = $pdfService->genererPdfTextuel('Avenant ' . $numeroAvenant, $contenuAvenant);
-
-        if (! is_dir(dirname(FCPATH . $pdfPath))) {
-            mkdir(dirname(FCPATH . $pdfPath), 0775, true);
+        if ($signatureExistante !== null) {
+            return redirect()->back()->with('info', 'Le bailleur a déjà signé ce contrat.');
         }
-        file_put_contents(FCPATH . $pdfPath, $pdf);
 
-        $idAvenant = $avenantModel->insert([
+        $nomBailleur = trim(($contrat['proprietaire_prenoms'] ?? '') . ' ' . ($contrat['proprietaire_nom'] ?? '')) ?: 'Bailleur';
+
+        $signatureModel->insert([
             'id_contrat' => $idContrat,
-            'numero_avenant' => $numeroAvenant,
-            'type_avenant' => $typeAvenant,
-            'champ_modifie' => $champModifie,
-            'ancienne_valeur' => $ancienneValeur !== '' ? $ancienneValeur : null,
-            'nouvelle_valeur' => $nouvelleValeur !== '' ? $nouvelleValeur : 'N/A',
-            'justification' => $justification !== '' ? $justification : null,
-            'date_effet' => $dateEffet,
-            'statut' => 'propose',
-            'contenu_pdf_chemin' => $pdfPath,
-            'contenu_hash_sha256' => hash('sha256', implode("\n", $contenuAvenant)),
+            'id_avenant' => null,
+            'id_utilisateur' => (int) session('id_utilisateur'),
+            'role_signataire' => 'bailleur',
+            'nom_affiche' => $nomBailleur,
+            'adresse_ip' => $_SERVER['REMOTE_ADDR'] ?? null,
         ]);
 
-        if ($idAvenant) {
-            (new NotificationModel())->insert([
-                'id_utilisateur' => (int) $contrat['id_client'],
-                'type' => 'avenant_a_signer',
-                'reference_table' => 'avenants',
-                'reference_id' => (int) $idAvenant,
-                'message' => 'Un avenant a été proposé par le bailleur. Veuillez le signer après validation.',
-            ]);
+        $aDejaSigneLocataire = $signatureModel
+            ->where('id_contrat', $idContrat)
+            ->where('role_signataire', 'locataire')
+            ->first();
+
+        (new ContratModel())->update($idContrat, [
+            'statut' => $aDejaSigneLocataire !== null ? 'valide' : 'signe_bailleur',
+        ]);
+
+        (new NotificationModel())->insert([
+            'id_utilisateur' => (int) $contrat['id_client'],
+            'type' => 'contrat_a_signer',
+            'reference_table' => 'contrats',
+            'reference_id' => $idContrat,
+            'message' => 'Le bailleur a signé le contrat. Veuillez maintenant valider vos engagements.',
+        ]);
+
+        return redirect()->to('/proprietaire/contrats/' . $idContrat)->with('succes', 'Signature du bailleur enregistrée.');
+    }
+
+    public function signerLocataire(int $idContrat)
+    {
+        $contrat = $this->chargerContratAccessible($idContrat, (int) session('id_utilisateur'), 'client');
+        if ($contrat === null) {
+            return redirect()->to('/client/mes-demandes')->with('erreur', 'Contrat introuvable.');
         }
 
-        return redirect()->back()->with('succes', 'Avenant proposé avec numérotation automatique.');
+        $signatureModel = new SignatureModel();
+        $signatureExistante = $signatureModel
+            ->where('id_contrat', $idContrat)
+            ->where('role_signataire', 'locataire')
+            ->first();
+
+        if ($signatureExistante !== null) {
+            return redirect()->back()->with('info', 'Le locataire a déjà signé ce contrat.');
+        }
+
+        $signatureBailleur = $signatureModel
+            ->where('id_contrat', $idContrat)
+            ->where('role_signataire', 'bailleur')
+            ->first();
+
+        if ($signatureBailleur === null) {
+            return redirect()->back()->with('erreur', 'Le bailleur doit signer avant le locataire.');
+        }
+
+        $nomLocataire = trim(($contrat['client_prenoms'] ?? '') . ' ' . ($contrat['client_nom'] ?? '')) ?: 'Locataire';
+
+        $signatureModel->insert([
+            'id_contrat' => $idContrat,
+            'id_avenant' => null,
+            'id_utilisateur' => (int) session('id_utilisateur'),
+            'role_signataire' => 'locataire',
+            'nom_affiche' => $nomLocataire,
+            'adresse_ip' => $_SERVER['REMOTE_ADDR'] ?? null,
+        ]);
+
+        (new ContratModel())->update($idContrat, ['statut' => 'valide']);
+
+        (new NotificationModel())->insert([
+            'id_utilisateur' => (int) $contrat['id_proprietaire'],
+            'type' => 'contrat_signe',
+            'reference_table' => 'contrats',
+            'reference_id' => $idContrat,
+            'message' => 'Le locataire a signé le contrat. Le bail est maintenant validé.',
+        ]);
+
+        return redirect()->to('/client/contrats/' . $idContrat)->with('succes', 'Signature du locataire enregistrée.');
+    }
+
+    public function signerAvenantBailleur(int $idAvenant)
+    {
+        $avenant = (new AvenantModel())->find($idAvenant);
+        if ($avenant === null) {
+            return redirect()->to('/proprietaire/contrats')->with('erreur', 'Avenant introuvable.');
+        }
+
+        $contrat = $this->chargerContratAccessible((int) $avenant['id_contrat'], (int) session('id_utilisateur'), 'proprietaire');
+        if ($contrat === null) {
+            return redirect()->to('/proprietaire/contrats')->with('erreur', 'Avenant non autorisé.');
+        }
+
+        $signatureModel = new SignatureModel();
+        if ($signatureModel->where('id_avenant', $idAvenant)->where('role_signataire', 'bailleur')->first() !== null) {
+            return redirect()->back()->with('info', 'Le bailleur a déjà signé cet avenant.');
+        }
+
+        $nomBailleur = trim(($contrat['proprietaire_prenoms'] ?? '') . ' ' . ($contrat['proprietaire_nom'] ?? '')) ?: 'Bailleur';
+
+        $signatureModel->insert([
+            'id_avenant' => $idAvenant,
+            'id_contrat' => null,
+            'id_utilisateur' => (int) session('id_utilisateur'),
+            'role_signataire' => 'bailleur',
+            'nom_affiche' => $nomBailleur,
+            'adresse_ip' => $_SERVER['REMOTE_ADDR'] ?? null,
+        ]);
+
+        $aDejaSigneLocataire = $signatureModel->where('id_avenant', $idAvenant)->where('role_signataire', 'locataire')->first();
+        (new AvenantModel())->update($idAvenant, [
+            'statut' => $aDejaSigneLocataire !== null ? 'valide' : 'signe_bailleur',
+        ]);
+
+        (new NotificationModel())->insert([
+            'id_utilisateur' => (int) $contrat['id_client'],
+            'type' => 'avenant_a_signer',
+            'reference_table' => 'avenants',
+            'reference_id' => $idAvenant,
+            'message' => 'Le bailleur a signé l’avenant. Veuillez continuer la validation.',
+        ]);
+
+        return redirect()->to('/proprietaire/contrats/' . $avenant['id_contrat'])->with('succes', 'Signature de l’avenant enregistrée.');
+    }
+
+    public function signerAvenantLocataire(int $idAvenant)
+    {
+        $avenant = (new AvenantModel())->find($idAvenant);
+        if ($avenant === null) {
+            return redirect()->to('/client/mes-demandes')->with('erreur', 'Avenant introuvable.');
+        }
+
+        $contrat = $this->chargerContratAccessible((int) $avenant['id_contrat'], (int) session('id_utilisateur'), 'client');
+        if ($contrat === null) {
+            return redirect()->to('/client/mes-demandes')->with('erreur', 'Avenant non autorisé.');
+        }
+
+        $signatureModel = new SignatureModel();
+        if ($signatureModel->where('id_avenant', $idAvenant)->where('role_signataire', 'locataire')->first() !== null) {
+            return redirect()->back()->with('info', 'Le locataire a déjà signé cet avenant.');
+        }
+
+        $signatureBailleur = $signatureModel->where('id_avenant', $idAvenant)->where('role_signataire', 'bailleur')->first();
+        if ($signatureBailleur === null) {
+            return redirect()->back()->with('erreur', 'Le bailleur doit signer avant le locataire.');
+        }
+
+        $nomLocataire = trim(($contrat['client_prenoms'] ?? '') . ' ' . ($contrat['client_nom'] ?? '')) ?: 'Locataire';
+
+        $signatureModel->insert([
+            'id_avenant' => $idAvenant,
+            'id_contrat' => null,
+            'id_utilisateur' => (int) session('id_utilisateur'),
+            'role_signataire' => 'locataire',
+            'nom_affiche' => $nomLocataire,
+            'adresse_ip' => $_SERVER['REMOTE_ADDR'] ?? null,
+        ]);
+
+        (new AvenantModel())->update($idAvenant, ['statut' => 'valide']);
+
+        (new NotificationModel())->insert([
+            'id_utilisateur' => (int) $contrat['id_proprietaire'],
+            'type' => 'avenant_signe',
+            'reference_table' => 'avenants',
+            'reference_id' => $idAvenant,
+            'message' => 'Le locataire a signé l’avenant. La modification est validée.',
+        ]);
+
+        return redirect()->to('/client/contrats/' . $avenant['id_contrat'])->with('succes', 'Signature de l’avenant enregistrée.');
     }
 
     private function relancerSignatureContratSiNecessaire(array $contrat): void
