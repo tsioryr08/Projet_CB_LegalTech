@@ -11,7 +11,6 @@ use App\Models\DemandeModel;
 use App\Models\ContratModel;
 use App\Models\NotificationModel;
 use App\Models\DossierLocationModel;
-use App\Models\ContratModel;
 use App\Models\AvenantModel;
 use App\Models\SignatureModel;
 
