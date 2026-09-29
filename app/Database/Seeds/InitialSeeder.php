@@ -78,6 +78,13 @@ class InitialSeeder extends Seeder
                 'message_affiche' => 'Le NIF et le STAT sont requis pour un usage commercial ou mixte. Le contrat reste sous condition suspensive de 30 jours.',
             ],
             [
+                'code'            => 'NIF_STAT_FORMAT_INVALIDE',
+                'libelle'         => 'Format NIF/STAT invalide',
+                'niveau'          => 'bloquant',
+                'article_loi'     => 'Code Général des Impôts',
+                'message_affiche' => 'Le NIF doit contenir exactement 10 chiffres et le STAT exactement 17 chiffres.',
+            ],
+            [
                 'code'            => 'CAPACITE_MINEUR',
                 'libelle'         => 'Locataire mineur non émancipé sans représentant',
                 'niveau'          => 'bloquant',

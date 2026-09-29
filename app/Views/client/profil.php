@@ -129,13 +129,17 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label">NIF</label>
-                        <input type="text" name="nif" class="form-control"
+                       <input type="text" name="nif" class="form-control" maxlength="10" inputmode="numeric" pattern="[0-9]{10}"
+                           placeholder="10 chiffres"
                                value="<?= esc(old('nif', $utilisateur['nif'] ?? '')) ?>">
+                       <div class="form-text">Le NIF malgache doit contenir exactement 10 chiffres.</div>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label">STAT</label>
-                        <input type="text" name="stat" class="form-control"
+                       <input type="text" name="stat" class="form-control" maxlength="17" inputmode="numeric" pattern="[0-9]{17}"
+                           placeholder="17 chiffres"
                                value="<?= esc(old('stat', $utilisateur['stat'] ?? '')) ?>">
+                       <div class="form-text">Le STAT malgache doit contenir exactement 17 chiffres.</div>
                     </div>
                 </div>
 

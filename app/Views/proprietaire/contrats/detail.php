@@ -19,6 +19,7 @@
         <div class="d-flex gap-2">
             <a class="btn btn-outline-secondary" href="<?= site_url('contrats/' . $id_contrat . '/pdf') ?>">Télécharger le PDF</a>
             <a class="btn btn-outline-secondary" href="<?= site_url('contrats/' . $id_contrat . '/fiche-fiscale') ?>">Télécharger la fiche fiscale</a>
+            <a class="btn btn-primary" href="<?= site_url('proprietaire/contrats/' . $id_contrat . '/avenants/ajouter') ?>">Créer un avenant</a>
         </div>
     </div>
 
@@ -65,6 +66,7 @@
 
     <div class="card mb-4">
         <div class="card-body">
+            
             <h5>Avenants en attente</h5>
             <?php if (! empty($avenants)): ?>
                 <div class="list-group">
@@ -77,6 +79,9 @@
                                 </div>
                                 <div class="text-end">
                                     <span class="badge bg-secondary mb-2"><?= esc($avenant['statut']) ?></span>
+                                    <div class="mt-2">
+                                        <a class="btn btn-sm btn-outline-secondary" href="<?= site_url('avenants/' . $avenant['id_avenant']) ?>">Consulter</a>
+                                    </div>
                                     <?php if (session('role') === 'proprietaire' && $avenant['statut'] === 'propose'): ?>
                                         <form method="post" action="<?= site_url('proprietaire/avenants/' . $avenant['id_avenant'] . '/signer') ?>">
                                             <?= csrf_field() ?>

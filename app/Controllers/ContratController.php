@@ -233,6 +233,55 @@ class ContratController extends BaseController
         return $this->reponsePdf($pdf, 'fiche-fiscale-' . ($contrat['numero_contrat'] ?? $idContrat) . '.pdf');
     }
 
+    public function consulterAvenant(int $idAvenant)
+    {
+        $contexte = $this->chargerAvenantAccessible($idAvenant);
+        if ($contexte === null) {
+            return redirect()->back()->with('erreur', 'Avenant introuvable ou non autorisé.');
+        }
+
+        $document = $this->construireDocumentAvenant($contexte['avenant'], $contexte['contrat']);
+
+        return view('avenants/detail', [
+            'avenant' => $contexte['avenant'],
+            'contrat' => $contexte['contrat'],
+            'document' => $document,
+        ]);
+    }
+
+    public function telechargerAvenantPdf(int $idAvenant)
+    {
+        $contexte = $this->chargerAvenantAccessible($idAvenant);
+        if ($contexte === null) {
+            return redirect()->back()->with('erreur', 'Avenant introuvable ou non autorisé.');
+        }
+
+        $avenant = $contexte['avenant'];
+        $contrat = $contexte['contrat'];
+
+        $document = $this->construireDocumentAvenant($avenant, $contrat);
+        $pdf = (new ContratPdfService())->genererPdfTextuel(
+            $document['titre_pdf'],
+            $document['lignes_pdf'],
+            true
+        );
+
+        $annee = date('Y');
+        $numeroContrat = $contrat['numero_contrat'] ?? ('CTR-' . $contrat['id_contrat']);
+        $path = 'uploads/avenants/' . $annee . '/' . $numeroContrat . '-avenant' . ($avenant['numero_avenant'] ?? $idAvenant) . '.pdf';
+        if (! is_dir(dirname(FCPATH . $path))) {
+            mkdir(dirname(FCPATH . $path), 0775, true);
+        }
+        file_put_contents(FCPATH . $path, $pdf);
+
+        (new AvenantModel())->update($idAvenant, [
+            'contenu_pdf_chemin' => $path,
+            'contenu_hash_sha256' => hash('sha256', $pdf),
+        ]);
+
+        return $this->reponsePdf($pdf, $this->nomFichierAvenant($avenant, $contrat));
+    }
+
     private function chargerContratPourTelechargement(int $idContrat): ?array
     {
         $role = (string) session('role');
@@ -649,6 +698,227 @@ class ContratController extends BaseController
         }
     }
 
+    // Affiche la liste / page des avenants pour un contrat (redirige vers la page de détail existante)
+    public function avenants(int $idContrat)
+    {
+        $role = session('role') ?? 'proprietaire';
+        if ($role === 'proprietaire') {
+            return redirect()->to('/proprietaire/contrats/' . $idContrat);
+        }
+
+        return redirect()->to('/client/contrats/' . $idContrat);
+    }
+
+    // Formulaire de création d'un avenant (GET)
+    public function formulaireAvenant(int $idContrat)
+    {
+        $contrat = $this->chargerContratAccessible($idContrat, (int) session('id_utilisateur'), 'proprietaire');
+        if ($contrat === null) {
+            return redirect()->to('/proprietaire/contrats')->with('erreur', 'Contrat introuvable ou non autorisé.');
+        }
+
+        return view('proprietaire/contrats/avenant_form', ['contrat' => $contrat]);
+    }
+
+    // Traitement de création d'un avenant (POST)
+    public function creerAvenant(int $idContrat)
+    {
+        $contrat = $this->chargerContratAccessible($idContrat, (int) session('id_utilisateur'), 'proprietaire');
+        if ($contrat === null) {
+            return redirect()->to('/proprietaire/contrats')->with('erreur', 'Contrat introuvable ou non autorisé.');
+        }
+
+        $avenantModel = new AvenantModel();
+        $data = [
+            'id_contrat' => $idContrat,
+            'numero_avenant' => $avenantModel->numeroSuivantPourContrat($idContrat),
+            'type_avenant' => $this->request->getPost('type_avenant') ?: 'modification',
+            'champ_modifie' => $this->request->getPost('champ_modifie'),
+            'ancienne_valeur' => $this->request->getPost('ancienne_valeur'),
+            'nouvelle_valeur' => $this->request->getPost('nouvelle_valeur'),
+            'justification' => $this->request->getPost('justification'),
+            'date_effet' => $this->request->getPost('date_effet') ?: date('Y-m-d'),
+            'statut' => 'propose',
+        ];
+
+        $id = $avenantModel->insert($data);
+
+        if ($id === false) {
+            return redirect()->back()->with('erreur', 'Impossible de créer l\'avenant.')->withInput();
+        }
+
+        return redirect()->to('/proprietaire/contrats/' . $idContrat)->with('succes', 'Avenant proposé.');
+    }
+
+    private function chargerAvenantAccessible(int $idAvenant): ?array
+    {
+        $avenant = (new AvenantModel())->find($idAvenant);
+        if ($avenant === null) {
+            return null;
+        }
+
+        $role = (string) session('role');
+        if (! in_array($role, ['client', 'proprietaire'], true)) {
+            return null;
+        }
+
+        $contrat = $this->chargerContratAccessible((int) $avenant['id_contrat'], (int) session('id_utilisateur'), $role);
+        if ($contrat === null) {
+            return null;
+        }
+
+        return [
+            'avenant' => $avenant,
+            'contrat' => $contrat,
+        ];
+    }
+
+    private function construireDocumentAvenant(array $avenant, array $contrat): array
+    {
+        $numeroContrat = $contrat['numero_contrat'] ?? ('CTR-' . $contrat['id_contrat']);
+        $dateContrat = $this->formaterDate($contrat['cree_le'] ?? null) ?? ($contrat['date_debut'] ?? '—');
+        $dateEffet = $this->formaterDate($avenant['date_effet'] ?? null) ?? date('d/m/Y');
+
+        $nomBailleur = trim(($contrat['proprietaire_prenoms'] ?? '') . ' ' . ($contrat['proprietaire_nom'] ?? '')) ?: 'Bailleur';
+        $adresseBailleur = trim((string) ($contrat['proprietaire_adresse'] ?? '')) ?: '—';
+        $nomLocataire = trim(($contrat['client_prenoms'] ?? '') . ' ' . ($contrat['client_nom'] ?? '')) ?: 'Locataire';
+        $adresseLocataire = trim((string) ($contrat['client_adresse'] ?? '')) ?: ($contrat['maison_adresse'] ?? '—');
+        $adresseBien = trim((string) ($contrat['maison_adresse'] ?? '')) ?: '—';
+
+        $signaturesContrat = (new SignatureModel())
+            ->where('id_contrat', (int) $contrat['id_contrat'])
+            ->orderBy('signe_le', 'ASC')
+            ->findAll();
+
+        $texteContratInitial = $this->buildTexteContratAffichage($contrat);
+        if (! empty($signaturesContrat)) {
+            $texteContratInitial = $this->insererSignatures(
+                $texteContratInitial,
+                $nomBailleur,
+                $this->premierPrenom($contrat['proprietaire_prenoms'] ?? ''),
+                $nomLocataire,
+                $this->premierPrenom($contrat['client_prenoms'] ?? '')
+            );
+        }
+        $lignesContratInitial = $this->lignesDepuisTemplate($texteContratInitial);
+
+        $modifications = $this->listerModificationsAvenant($avenant);
+        $lignesAvenant = [
+            'AVENANT AU CONTRAT DE BAIL',
+            '',
+            'Origine du contrat : Contrat initial n° ' . $numeroContrat,
+            'Date du contrat initial : ' . $dateContrat,
+            'Logement concerné : ' . $adresseBien,
+            '',
+            'Entre les soussignés :',
+            'Le bailleur : ' . $nomBailleur . ', demeurant ' . $adresseBailleur,
+            'Le(s) locataire(s) : ' . $nomLocataire . ', demeurant ' . $adresseLocataire,
+            '',
+            'Article 1 – Objet de l’avenant',
+            'Le présent avenant modifie le contrat de bail conclu le ' . $dateContrat . ' pour le logement situé ' . $adresseBien . '.',
+            '',
+            'Article 2 – Modification(s) apportée(s)',
+        ];
+
+        foreach ($modifications as $modification) {
+            $lignesAvenant[] = '- ' . $modification['article'];
+            $lignesAvenant[] = '  Ancienne valeur : ' . $modification['ancienne'];
+            $lignesAvenant[] = '  Nouvelle valeur : ' . $modification['nouvelle'];
+        }
+
+        $lignesAvenant[] = 'Le reste est sans changement.';
+        $lignesAvenant[] = '';
+        $lignesAvenant[] = 'Article 3 – Date d’effet';
+        $lignesAvenant[] = 'Le présent avenant prend effet le ' . $dateEffet . '.';
+        $lignesAvenant[] = '';
+        $lignesAvenant[] = 'Article 4 – Maintien des autres clauses';
+        $lignesAvenant[] = 'Toutes les autres clauses et conditions du bail d’origine demeurent inchangées.';
+        $lignesAvenant[] = '';
+        $lignesAvenant[] = 'Fait à ' . ($contrat['ville'] ?? ($contrat['maison_ville'] ?? '—')) . ', le ' . date('d/m/Y') . ',';
+        $lignesAvenant[] = '';
+        $lignesAvenant[] = 'Signature du bailleur : ' . $nomBailleur;
+        $lignesAvenant[] = 'Signature du (des) locataire(s) : ' . $nomLocataire;
+
+        $texteAvenant = implode("\n", $lignesAvenant);
+
+        return [
+            'titre_pdf' => 'Avenant au contrat de bail - ' . $numeroContrat . ' - n°' . ($avenant['numero_avenant'] ?? 'N'),
+            'numero_contrat' => $numeroContrat,
+            'date_contrat_initial' => $dateContrat,
+            'date_effet' => $dateEffet,
+            'nom_bailleur' => $nomBailleur,
+            'nom_locataire' => $nomLocataire,
+            'adresse_bailleur' => $adresseBailleur,
+            'adresse_locataire' => $adresseLocataire,
+            'adresse_bien' => $adresseBien,
+            'contrat_initial_texte' => $texteContratInitial,
+            'contrat_initial_lignes' => $lignesContratInitial,
+            'contrat_signatures' => $signaturesContrat,
+            'avenant_texte' => $texteAvenant,
+            'avenant_lignes' => $lignesAvenant,
+            'lignes_pdf' => array_merge(
+                ['CONTRAT DE BAIL INITIAL'],
+                $lignesContratInitial,
+                ['[[PAGE_BREAK]]', 'AVENANT AU CONTRAT DE BAIL'],
+                $lignesAvenant
+            ),
+            'modifications' => $modifications,
+            'statut' => $avenant['statut'] ?? null,
+            'numero_avenant' => $avenant['numero_avenant'] ?? null,
+            'type_avenant' => $avenant['type_avenant'] ?? null,
+            'justification' => $avenant['justification'] ?? null,
+        ];
+    }
+
+    private function listerModificationsAvenant(array $avenant): array
+    {
+        $articles = $this->splitLignesAvenant((string) ($avenant['champ_modifie'] ?? ''));
+        if ($articles === []) {
+            $articles = ['Article non précisé'];
+        }
+
+        $anciennes = $this->splitLignesAvenant((string) ($avenant['ancienne_valeur'] ?? ''));
+        $nouvelles = $this->splitLignesAvenant((string) ($avenant['nouvelle_valeur'] ?? ''));
+
+        $resultat = [];
+        foreach ($articles as $index => $article) {
+            $resultat[] = [
+                'article' => $article,
+                'ancienne' => $anciennes[$index] ?? ($anciennes[0] ?? '—'),
+                'nouvelle' => $nouvelles[$index] ?? ($nouvelles[0] ?? '—'),
+            ];
+        }
+
+        return $resultat;
+    }
+
+    private function splitLignesAvenant(string $contenu): array
+    {
+        $lignes = preg_split('/\r\n|\r|\n/', trim($contenu), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        return array_values(array_filter(array_map('trim', $lignes)));
+    }
+
+    private function formaterDate(?string $date): ?string
+    {
+        if (empty($date)) {
+            return null;
+        }
+
+        try {
+            return (new \DateTimeImmutable($date))->format('d/m/Y');
+        } catch (\Throwable $e) {
+            return $date;
+        }
+    }
+
+    private function nomFichierAvenant(array $avenant, array $contrat): string
+    {
+        $numero = $contrat['numero_contrat'] ?? ('CTR-' . ($contrat['id_contrat'] ?? '0'));
+
+        return 'avenant-' . $numero . '-n' . ($avenant['numero_avenant'] ?? '1') . '.pdf';
+    }
+
     private function insererRelanceSiAbsente(int $idUtilisateur, string $referenceTable, int $referenceId, string $message): void
     {
         $existe = (new NotificationModel())
@@ -770,7 +1040,6 @@ class ContratController extends BaseController
 
         $valeurs = [
             '{{numero_contrat}}' => $numeroContrat,
-            '{{bailleur_nom}}' => htmlspecialchars($contexte['proprietaire']['nom'] ?? '', ENT_QUOTES),
             '{{bailleur_prenoms}}' => htmlspecialchars($contexte['proprietaire']['prenoms'] ?? '', ENT_QUOTES),
             '{{bailleur_cin}}' => htmlspecialchars($contexte['proprietaire']['cin_numero'] ?? 'N/A', ENT_QUOTES),
             '{{bailleur_adresse}}' => htmlspecialchars($contexte['proprietaire']['adresse'] ?? 'Antananarivo', ENT_QUOTES),
@@ -1132,7 +1401,7 @@ TXT;
         }
 
         $contrat = (new ContratModel())->avecRelations()
-            ->select('contrats.*, maisons.titre AS maison_titre, maisons.adresse AS maison_adresse, maisons.usage_autorise, maisons.loyer_mensuel AS loyer_maison, maisons.valeur_immeuble, maisons.date_construction, maisons.nb_chambres, maisons.id_proprietaire AS maison_proprietaire, client.nom AS client_nom, client.prenoms AS client_prenoms, client.cin_numero, client.nif, client.stat, bailleur.nom AS proprietaire_nom, bailleur.prenoms AS proprietaire_prenoms')
+            ->select('contrats.*, maisons.titre AS maison_titre, maisons.adresse AS maison_adresse, maisons.usage_autorise, maisons.loyer_mensuel AS loyer_maison, maisons.valeur_immeuble, maisons.date_construction, maisons.nb_chambres, maisons.id_proprietaire AS maison_proprietaire, client.nom AS client_nom, client.prenoms AS client_prenoms, client.cin_numero AS client_cin_numero, client.cin_date_delivrance AS client_cin_date_delivrance, client.cin_lieu_delivrance AS client_cin_lieu_delivrance, client.date_naissance AS client_date_naissance, client.profession AS client_profession, client.nif AS client_nif, client.stat AS client_stat, bailleur.nom AS proprietaire_nom, bailleur.prenoms AS proprietaire_prenoms, bailleur.cin_numero AS proprietaire_cin_numero, bailleur.cin_date_delivrance AS proprietaire_cin_date_delivrance, bailleur.cin_lieu_delivrance AS proprietaire_cin_lieu_delivrance, bailleur.date_naissance AS proprietaire_date_naissance, bailleur.profession AS proprietaire_profession, bailleur.nif AS proprietaire_nif, bailleur.stat AS proprietaire_stat')
             ->join('maisons', 'maisons.id_maison = contrats.id_maison')
             ->join('utilisateurs client', 'client.id_utilisateur = contrats.id_client')
             ->join('utilisateurs bailleur', 'bailleur.id_utilisateur = contrats.id_proprietaire')
@@ -1179,14 +1448,14 @@ TXT;
         $montantDroit = (float) ($contrat['montant_droit_enregistrement'] ?? 0);
 
         $replace = [
-            '{numero_contrat}' => $contrat['numero_contrat'] ?? 'N/A',
+            '{numero_contrat}' => $contrat['numero_contrat'] ?? '—',
             '{bailleur}' => $nomBailleur ?: 'Bailleur',
             '{locataire}' => $nomLocataire ?: 'Locataire',
-            '{bailleur_cin}' => $contrat['cin_numero'] ?? ($contrat['bailleur_cin'] ?? 'N/A'),
+            '{bailleur_cin}' => $contrat['proprietaire_cin_numero'] ?? ($contrat['bailleur_cin'] ?? '—'),
             '{bailleur_adresse}' => $contrat['adresse_proprietaire'] ?? ($contrat['bailleur_adresse'] ?? 'Antananarivo'),
-            '{locataire_date_naissance}' => $contrat['client_date_naissance'] ?? ($contrat['date_naissance'] ?? 'N/A'),
-            '{locataire_cin}' => $contrat['client_cin_numero'] ?? ($contrat['cin_numero_client'] ?? 'N/A'),
-            '{locataire_cin_date}' => $contrat['client_cin_date_delivrance'] ?? ($contrat['cin_date_delivrance'] ?? 'N/A'),
+            '{locataire_date_naissance}' => $contrat['client_date_naissance'] ?? ($contrat['date_naissance'] ?? '—'),
+            '{locataire_cin}' => $contrat['client_cin_numero'] ?? ($contrat['cin_numero_client'] ?? '—'),
+            '{locataire_cin_date}' => $contrat['client_cin_date_delivrance'] ?? ($contrat['cin_date_delivrance'] ?? '—'),
             '{locataire_cin_lieu}' => $contrat['client_cin_lieu_delivrance'] ?? ($contrat['cin_lieu_delivrance'] ?? 'Antananarivo'),
             '{locataire_profession}' => $contrat['client_profession'] ?? ($contrat['profession'] ?? ($contrat['activite_declaree'] ?? '—')),
             '{type_bien}' => $contrat['type_bien'] ?? ($contrat['usage_autorise'] ?? 'Appartement'),

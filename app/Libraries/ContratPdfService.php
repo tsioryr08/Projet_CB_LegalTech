@@ -131,6 +131,11 @@ class ContratPdfService
                 continue;
             }
 
+            if ($bloc['type'] === 'page-break') {
+                $corps .= '<div class="page-break"></div>';
+                continue;
+            }
+
             $corps .= '<p class="paragraph">' . $bloc['texte'] . '</p>';
         }
 
@@ -143,6 +148,7 @@ class ContratPdfService
             'p.paragraph{font-size:11pt;line-height:1.6;margin:0;text-align:justify;color:#000;}' .
             '.bullet{font-size:11pt;line-height:1.6;margin:0 0 0 20px;text-align:justify;}' .
             '.spacer{height:12px;margin:0;padding:0;}' .
+            '.page-break{page-break-before:always;height:0;margin:0;padding:0;}' .
             '</style></head><body>' . $corps . '</body></html>';
     }
 
@@ -151,6 +157,7 @@ class ContratPdfService
         $items = [];
         $indexNonVide = 0;
         $articleCommence = false;
+        $apresSautPage = false;
 
         foreach ($lignes as $ligne) {
             $ligne = trim((string) $ligne);
@@ -158,6 +165,20 @@ class ContratPdfService
 
             // Ignorer les lignes vides
             if ($ligne === '') {
+                continue;
+            }
+
+            if ($ligne === '[[PAGE_BREAK]]') {
+                $items[] = ['type' => 'page-break', 'texte' => ''];
+                $apresSautPage = true;
+                continue;
+            }
+
+            if ($apresSautPage) {
+                $items[] = ['type' => 'title', 'texte' => $texte];
+                $items[] = ['type' => 'spacer', 'texte' => ''];
+                $apresSautPage = false;
+                $indexNonVide++;
                 continue;
             }
 

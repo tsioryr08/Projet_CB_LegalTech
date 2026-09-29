@@ -69,6 +69,7 @@
                             </div>
                             <div class="text-end">
                                 <span class="badge bg-secondary mb-2"><?= esc($avenant['statut']) ?></span><br>
+                                <a class="btn btn-sm btn-outline-secondary mb-2" href="<?= site_url('avenants/' . $avenant['id_avenant']) ?>">Consulter</a><br>
                                 <?php if ($avenant['statut'] === 'signe_bailleur'): ?>
                                     <form method="post" action="<?= site_url('client/avenants/' . $avenant['id_avenant'] . '/signer') ?>">
                                         <?= csrf_field() ?>

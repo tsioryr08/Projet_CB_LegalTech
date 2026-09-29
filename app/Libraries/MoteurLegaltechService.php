@@ -28,6 +28,7 @@ use Exception;
  *   car le catalogue regles_legaltech ne prévoit pas de code dédié. Facile à séparer
  *   plus tard : ajouter une ligne dans regles_legaltech (ex. CIN_SEXE_INCOHERENT) et
  *   changer le code renvoyé ci-dessous.
+ * - Le NIF doit faire 10 chiffres et le STAT 17 chiffres dès qu'ils sont saisis.
  * - depot_garantie n'existe pas encore au stade du dossier (C5) : la règle
  *   CAUTION_PLAFOND ne peut donc s'appliquer qu'au stade de la génération du contrat
  *   (P5), en rappelant evaluer()/resultats() avec le montant réel de la caution.
@@ -98,6 +99,13 @@ class MoteurLegaltechService
             if ($nif === '' || $stat === '') {
                 $codes[] = 'NIF_STAT_MANQUANT';
             }
+        }
+
+        // --- NIF / STAT : format exact ---
+        $nif  = trim((string) ($donnees['nif'] ?? ''));
+        $stat = trim((string) ($donnees['stat'] ?? ''));
+        if (($nif !== '' && ! preg_match('/^\d{10}$/', $nif)) || ($stat !== '' && ! preg_match('/^\d{17}$/', $stat))) {
+            $codes[] = 'NIF_STAT_FORMAT_INVALIDE';
         }
 
         // --- Suroccupation ---
