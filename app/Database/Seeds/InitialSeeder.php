@@ -266,5 +266,123 @@ class InitialSeeder extends Seeder
                 'statut_compte'     => 'actif',
             ],
         ]);
+
+        // ============================================
+        // Maisons de test (propriétaire : Marie RASOANAIVO)
+        // ============================================
+        $idProprietaire = (int) $this->db->table('utilisateurs')
+            ->where('email', 'proprietaire.test@cb-legaltech.mg')
+            ->get()->getRow()->id_utilisateur;
+
+        $villes = array_column(
+            $this->db->table('villes')->get()->getResultArray(),
+            'id_ville',
+            'nom'
+        );
+
+        $this->db->table('maisons')->insertBatch([
+            // 1 - Habitation, Antananarivo
+            [
+                'id_proprietaire'      => $idProprietaire,
+                'id_ville'             => (int) $villes['Antananarivo'],
+                'titre'                => 'Villa Ivandry avec jardin',
+                'adresse'              => 'Lot II M 45 Ivandry, Antananarivo 101',
+                'description'          => 'Villa de standing avec 4 chambres, salon, cuisine équipée, garage pour 2 voitures, jardin clôturé, gardien.',
+                'type_bien'            => 'villa',
+                'nb_chambres'          => 4,
+                'superficie_m2'        => 220,
+                'loyer_mensuel'        => 4500000,
+                'valeur_immeuble'      => 850000000,
+                'date_construction'    => '2012-06-15',
+                'titre_foncier_numero' => 'TF n° 48213-A',
+                'usage_autorise'       => 'habitation',
+                'statut'               => 'disponible',
+            ],
+            // 2 - Habitation, Toamasina
+            [
+                'id_proprietaire'      => $idProprietaire,
+                'id_ville'             => (int) $villes['Toamasina'],
+                'titre'                => 'Appartement Tanambao V',
+                'adresse'              => 'Lot 12 B Tanambao V, Toamasina 501',
+                'description'          => 'Appartement au 2e étage avec 2 chambres, salon, cuisine, balcon, eau JIRAMA et compteur individuel, quartier calme.',
+                'type_bien'            => 'appartement',
+                'nb_chambres'          => 2,
+                'superficie_m2'        => 75,
+                'loyer_mensuel'        => 900000,
+                'valeur_immeuble'      => 160000000,
+                'date_construction'    => '2016-03-20',
+                'titre_foncier_numero' => 'TF n° 21874-T',
+                'usage_autorise'       => 'habitation',
+                'statut'               => 'disponible',
+            ],
+            // 3 - Commercial, Antananarivo
+            [
+                'id_proprietaire'      => $idProprietaire,
+                'id_ville'             => (int) $villes['Antananarivo'],
+                'titre'                => 'Local commercial Analakely',
+                'adresse'              => "Lot 15 Avenue de l'Indépendance, Analakely, Antananarivo 101",
+                'description'          => 'Local au rez-de-chaussée avec vitrine sur rue passante, arrière-boutique, sanitaires, compteur JIRAMA séparé.',
+                'type_bien'            => 'local_commercial',
+                'nb_chambres'          => 0,
+                'superficie_m2'        => 60,
+                'loyer_mensuel'        => 2200000,
+                'valeur_immeuble'      => 420000000,
+                'date_construction'    => '1998-09-10',
+                'titre_foncier_numero' => 'TF n° 30592-A',
+                'usage_autorise'       => 'commercial',
+                'statut'               => 'disponible',
+            ],
+            // 4 - Commercial, Antsirabe
+            [
+                'id_proprietaire'      => $idProprietaire,
+                'id_ville'             => (int) $villes['Antsirabe'],
+                'titre'                => "Boutique Avenue de l'Indépendance",
+                'adresse'              => "Lot 08 Avenue de l'Indépendance, Antsirabe 110",
+                'description'          => 'Boutique d\'angle près du marché avec grande vitrine, réserve, sanitaires. Convient à une épicerie, une pharmacie ou un commerce de vêtements.',
+                'type_bien'            => 'local_commercial',
+                'nb_chambres'          => 0,
+                'superficie_m2'        => 45,
+                'loyer_mensuel'        => 1100000,
+                'valeur_immeuble'      => 190000000,
+                'date_construction'    => '2005-11-25',
+                'titre_foncier_numero' => 'TF n° 15367-D',
+                'usage_autorise'       => 'commercial',
+                'statut'               => 'disponible',
+            ],
+            // 5 - Mixte, Antananarivo
+            [
+                'id_proprietaire'      => $idProprietaire,
+                'id_ville'             => (int) $villes['Antananarivo'],
+                'titre'                => 'Maison-boutique Ambohimanarina',
+                'adresse'              => 'Lot IVG 112 Ambohimanarina, Antananarivo 101',
+                'description'          => 'Bâtiment R+1 avec local commercial au rez-de-chaussée donnant sur rue, logement de 3 chambres à l\'étage, entrée séparée.',
+                'type_bien'            => 'autre',
+                'nb_chambres'          => 3,
+                'superficie_m2'        => 130,
+                'loyer_mensuel'        => 2000000,
+                'valeur_immeuble'      => 380000000,
+                'date_construction'    => '2009-04-18',
+                'titre_foncier_numero' => 'TF n° 39045-A',
+                'usage_autorise'       => 'mixte',
+                'statut'               => 'disponible',
+            ],
+            // 6 - Mixte, Toamasina
+            [
+                'id_proprietaire'      => $idProprietaire,
+                'id_ville'             => (int) $villes['Toamasina'],
+                'titre'                => 'Villa-bureau Boulevard Joffre',
+                'adresse'              => 'Lot 27 Boulevard Joffre, Toamasina 501',
+                'description'          => 'Villa avec 2 chambres à l\'étage et un espace de réception au rez-de-chaussée, utilisable comme cabinet ou petit commerce. Cour et parking.',
+                'type_bien'            => 'villa',
+                'nb_chambres'          => 2,
+                'superficie_m2'        => 110,
+                'loyer_mensuel'        => 1800000,
+                'valeur_immeuble'      => 310000000,
+                'date_construction'    => '2003-08-05',
+                'titre_foncier_numero' => 'TF n° 27718-T',
+                'usage_autorise'       => 'mixte',
+                'statut'               => 'disponible',
+            ],
+        ]);
     }
 }
