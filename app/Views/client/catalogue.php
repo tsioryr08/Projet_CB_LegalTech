@@ -5,35 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Catalogue — Espace Locataire</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .carte-maison img, .carte-maison .placeholder-photo {
-            height: 180px; object-fit: cover; background: #e9ecef;
-        }
-    </style>
+    <link href="<?= base_url('assets/css/app.css') ?>" rel="stylesheet">
 </head>
-<body class="bg-light">
-<nav class="navbar navbar-dark bg-primary mb-4">
-    <div class="container">
-        <span class="navbar-brand">LegalTech Bail — Espace Locataire</span>
-        <div>
-            <a href="<?= site_url('client/notifications') ?>" class="btn btn-outline-light btn-sm me-2 position-relative">
-                Notifications
-                <?php if (($nbNotifNonLues ?? 0) > 0) : ?>
-                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                        <?= $nbNotifNonLues ?>
-                    </span>
-                <?php endif; ?>
-            </a>
-            <a href="<?= site_url('client/mes-demandes') ?>" class="btn btn-outline-light btn-sm me-2">Mes demandes</a>
-            <a href="<?= site_url('client/mes-contrats') ?>" class="btn btn-outline-light btn-sm me-2">Mes contrats</a>
-            <a href="<?= site_url('client/profil') ?>" class="btn btn-outline-light btn-sm me-2">Mon profil</a>
-            <a href="<?= site_url('auth/deconnexion') ?>" class="btn btn-outline-light btn-sm">Déconnexion</a>
-        </div>
-    </div>
-</nav>
+<body class="bg-light catalogue-page">
+<?= view('partials/navigation_client') ?>
 
 <div class="container pb-5">
-    <h2>Bienvenue, <?= esc($nom) ?> 👋</h2>
+    <h2>Bienvenue, <?= esc($nom) ?></h2>
     <p class="text-muted mb-4">Parcourez les maisons disponibles à la location.</p>
 
     <!-- Filtre par ville -->
@@ -71,7 +49,7 @@
                         <div class="card-body">
                             <h5 class="card-title"><?= esc($maison['titre']) ?></h5>
                             <p class="card-text text-muted mb-1">
-                                📍 <?= esc($maison['nom_ville']) ?> — <?= esc(ucfirst($maison['type_bien'])) ?>
+                                Ville : <?= esc($maison['nom_ville']) ?> — <?= esc(ucfirst($maison['type_bien'])) ?>
                             </p>
                             <p class="card-text mb-1"><?= $maison['nb_chambres'] ?> chambre(s)</p>
                             <p class="card-text fw-bold">

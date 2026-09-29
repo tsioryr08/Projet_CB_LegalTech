@@ -5,51 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Avenant n°<?= esc($avenant['numero_avenant'] ?? '') ?> — Contrat <?= esc($document['numero_contrat'] ?? '') ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { background: #f5f6f8; }
-        .paper {
-            background: #fff;
-            border: 1px solid #dee2e6;
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            line-height: 1.8;
-        }
-        .paper .title-line {
-            text-align: center;
-            font-weight: 700;
-            margin-bottom: 1rem;
-        }
-        .paper .section-title {
-            font-weight: 700;
-            margin: 1.1rem 0 0.5rem;
-            padding-bottom: 0.25rem;
-            border-bottom: 1px solid #e9ecef;
-        }
-        .article-box {
-            border: 1px solid #e9ecef;
-            border-radius: 0.4rem;
-            padding: 0.85rem 1rem;
-            margin-bottom: 0.75rem;
-        }
-        .article-box:last-child { margin-bottom: 0; }
-        .article-box .article-title { font-weight: 700; margin-bottom: 0.3rem; }
-        .signature-box {
-            border: 1px solid #dee2e6;
-            border-radius: 0.4rem;
-            padding: 1rem;
-            height: 100%;
-        }
-        .signature-box .role { font-size: 0.8rem; text-transform: uppercase; color: #6c757d; }
-        .signature-box .name { font-weight: 600; }
-        .signature-box .hint { font-size: 0.85rem; color: #6c757d; margin-top: 0.4rem; }
-        .footer-actions { display: flex; justify-content: flex-end; gap: 0.75rem; }
-        @media print {
-            .toolbar, .footer-actions, nav { display: none !important; }
-        }
-    </style>
+    <link href="<?= base_url('assets/css/app.css') ?>" rel="stylesheet">
 </head>
 <body>
-<div class="container py-4" style="max-width: 1000px;">
+<?= view('partials/navigation_' . (session('role') === 'proprietaire' ? 'proprietaire' : 'client')) ?>
+
+<div class="container py-4 avenant-document">
     <?php
     // Libellés courts pour les badges de statut
     $libellesStatut = [

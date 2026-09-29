@@ -1,0 +1,238 @@
+/* LegalTech Bail — thème panna cotta, beige et bois clair */
+:root {
+    --ink: #463c32;
+    --muted: #7d7163;
+    --brand: #721322;
+    --brand-hover: #57101c;
+    --accent: #c7a77f;
+    --azure: #4c8298;
+    --azure-deep: #32677d;
+    --azure-soft: #e3f0f4;
+    --link-warm: #89694a;
+    --link-warm-hover: #63472f;
+    --rose: #f2dfe3;
+    --rose-deep: #a95d70;
+    --paper: #fffdf9;
+    --canvas: #f6f0e7;
+    --line: #e8ddce;
+    --soft: #f1e7da;
+    --radius: 14px;
+    --shadow: 0 9px 26px rgba(80, 59, 39, .075);
+    --bs-primary: #721322;
+    --bs-primary-rgb: 114, 19, 34;
+    --bs-link-color: #89694a;
+    --bs-link-color-rgb: 137, 105, 74;
+    --bs-link-hover-color: #63472f;
+    --bs-link-hover-color-rgb: 99, 71, 47;
+}
+
+html { scroll-behavior: smooth; }
+body, body.bg-light {
+    background: var(--canvas) !important;
+    color: var(--ink);
+    font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+}
+.container { max-width: 1160px; }
+.container.page-narrow { max-width: 760px; }
+.container.auth-login { max-width: 480px; }
+.container.auth-register { max-width: 520px; }
+.container.avenant-document { max-width: 1000px; }
+
+h1, h2, h3, h4, h5, h6 { color: #463a30; font-weight: 650; letter-spacing: -.025em; }
+h1, h2 { margin-bottom: .55rem; }
+.text-muted { color: var(--muted) !important; }
+.text-primary { color: var(--brand) !important; }
+a { color: var(--link-warm); }
+a:hover { color: var(--link-warm-hover); }
+
+.navbar, .navbar.bg-primary, .navbar.bg-dark {
+    background: linear-gradient(105deg, #4f111d, #721322) !important;
+    box-shadow: 0 3px 16px rgba(65, 48, 33, .14);
+    padding: .82rem 0;
+}
+.navbar .container { gap: 1rem; }
+.navbar-brand { color: #fff !important; font-size: 1rem; font-weight: 650; letter-spacing: .01em; }
+.navbar-nav { gap: .2rem; }
+.navbar .nav-link { color: rgba(255,255,255,.76) !important; padding: .45rem .7rem !important; border-radius: 8px; }
+.navbar .nav-link:hover, .navbar .nav-link:focus { color: #fff !important; background: rgba(255,255,255,.09); }
+.navbar .btn-outline-light { border-color: rgba(255,255,255,.32); color: #fff; }
+.navbar .btn-outline-light:hover { background: #fff; border-color: #fff; color: #721322; }
+
+.card, .list-group, .table-responsive, .alert { border-color: var(--line); border-radius: var(--radius); }
+.card { background-color: var(--paper); box-shadow: var(--shadow); }
+.card-header { background: #f7f0e6; border-color: var(--line); }
+.card-body { padding: 1.35rem; }
+.list-group { overflow: hidden; box-shadow: var(--shadow); }
+.list-group-item { border-color: var(--line); background: var(--paper); }
+
+.btn { border-radius: 9px; font-weight: 550; transition: background-color .15s ease, border-color .15s ease, transform .15s ease; }
+.btn:hover { transform: translateY(-1px); }
+.btn-primary { background: var(--brand); border-color: var(--brand); }
+.btn-primary:hover, .btn-primary:focus { background: var(--brand-hover); border-color: var(--brand-hover); }
+.btn-secondary { background: #756b60; border-color: #756b60; }
+.btn-info { background: #dcecf1; border-color: #c5dfe7; color: #315f70; }
+.btn-warning { background: #f0dfc5; border-color: #f0dfc5; color: #5c4630; }
+.btn-outline-primary { color: var(--brand); border-color: #aa9277; }
+.btn-outline-primary:hover { color: #fff; background: var(--brand); border-color: var(--brand); }
+
+.form-control, .form-select { min-height: 42px; border-color: #e2d5c3; border-radius: 9px; background-color: #fffdfa; color: var(--ink); }
+.form-control:focus, .form-select:focus { border-color: #a88968; box-shadow: 0 0 0 .2rem rgba(137, 105, 74, .14); }
+.form-label { color: #514438; font-size: .92rem; font-weight: 600; }
+
+.table-responsive { background: var(--paper); box-shadow: var(--shadow); }
+.table { --bs-table-bg: transparent; margin-bottom: 0; }
+.table > :not(caption) > * > * { padding: .85rem .9rem; border-color: var(--line); }
+.table thead th { color: #65594c; background: #f7f0e6; font-size: .78rem; font-weight: 700; letter-spacing: .045em; text-transform: uppercase; white-space: nowrap; }
+.table-hover tbody tr:hover { --bs-table-accent-bg: #fbf6ee; }
+.table-action-cell { min-width: 260px; }
+
+.badge { border-radius: 999px; font-weight: 600; letter-spacing: .01em; padding: .45em .72em; }
+.badge.bg-secondary { color: #574a3d !important; background: #eee5d9 !important; }
+.badge.bg-info { color: #315f70 !important; background: #dcecf1 !important; }
+.badge.bg-warning { background: #f4e7ce !important; color: #624a2f !important; }
+.badge.bg-success { background: #e1eadf !important; color: #3d5a3f !important; }
+.badge.bg-danger { background: #f2dfe3 !important; color: #721322 !important; }
+.alert { box-shadow: none; }
+.alert-info { color: #315f70; background: #e3f0f4; border-color: #cde2e8; }
+
+.carte-maison { overflow: hidden; transition: transform .18s ease, box-shadow .18s ease; }
+.carte-maison { border-color: #ead8dc; }
+.carte-maison:hover { transform: translateY(-3px); box-shadow: 0 14px 32px rgba(114,19,34,.12) !important; }
+.carte-maison img, .carte-maison .placeholder-photo { height: 205px; object-fit: cover; background: #f0e7dc; }
+.notif-non-lue { border-left: 4px solid var(--rose-deep); background: #fcf2f4; }
+.notif-lue { border-left: 4px solid transparent; }
+.contract-document { white-space: pre-line; font-family: Georgia, "Times New Roman", serif; line-height: 1.85; background: var(--paper); border: 1px solid var(--line); padding: 2rem; border-radius: 11px; }
+.photo-maison { height: 380px; object-fit: cover; }
+.input-order { width: 100px; }
+
+/* Accueil : accès locataire et propriétaire équilibrés */
+body.landing-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    background-color: #eee2d1 !important;
+    background-image: radial-gradient(ellipse at 12% 12%, rgba(255,255,255,.72), transparent 34%),
+                      radial-gradient(ellipse at 92% 88%, rgba(188,151,108,.18), transparent 32%),
+                      linear-gradient(135deg, #f4ecdf, #e8dac7) !important;
+}
+.landing-page .container { max-width: 1030px; padding-top: 3rem; padding-bottom: 3rem; }
+.landing-title { color: #463a30; }
+.landing-title h1 { color: #463a30; font-size: clamp(2rem, 4vw, 3.15rem); }
+.landing-title .lead { color: #75685a; font-size: 1.08rem; }
+.landing-kicker { display: inline-block; margin-bottom: 1rem; color: #98764f; font-size: .72rem; font-weight: 750; letter-spacing: .17em; }
+.landing-options { align-items: stretch; }
+.landing-options > [class*="col-"] { align-items: stretch; }
+.landing-card-link { display: block; width: 100%; height: 100%; }
+.landing-page .carte-choix {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    min-height: 300px;
+    height: 100%;
+    padding: 2.2rem !important;
+    overflow: hidden;
+    border: 1px solid rgba(169, 135, 97, .23);
+    border-radius: 20px;
+    background: rgba(255, 253, 249, .96);
+    box-shadow: 0 18px 42px rgba(121, 91, 58, .09) !important;
+}
+.landing-page .carte-choix::before { content: ""; position: absolute; inset: 0 0 auto; height: 5px; background: linear-gradient(90deg, #d3b893, #a98761); }
+.landing-page .col-md-5:first-child .carte-choix::before { background: linear-gradient(90deg, #c78391, #721322); }
+.landing-page .col-md-5:nth-child(2) .carte-choix::before { background: linear-gradient(90deg, #e2cdb0, #a98761); }
+.landing-page .carte-choix:hover { border-color: rgba(169, 135, 97, .42); box-shadow: 0 24px 48px rgba(121, 91, 58, .14) !important; }
+.landing-page .icone-choix { min-height: 0; margin: .3rem 0 1.15rem !important; color: #98764f; font-size: .72rem; }
+.landing-page .col-md-5:first-child .icone-choix { color: var(--rose-deep); }
+.landing-page .col-md-5:nth-child(2) .icone-choix { color: #98764f; }
+.landing-page .carte-choix h3 { margin-bottom: .7rem; }
+.landing-page .carte-choix p { max-width: 300px; min-height: 3.2rem; margin-bottom: 1.4rem; }
+.landing-action { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; margin-top: auto; white-space: normal; }
+.landing-page .btn-outline-primary { background: #f0e5d5; color: #70553a; border-color: #d3bea0; }
+.landing-page .btn-outline-primary:hover { background: #dfceb7; border-color: #c6aa84; color: #503c2f; }
+.landing-page .landing-card-link { color: inherit; text-decoration: none; }
+.landing-page .landing-card-link:visited { color: inherit; }
+.landing-page .landing-card-link:focus-visible { outline: 3px solid rgba(137, 105, 74, .42); outline-offset: 5px; border-radius: 22px; }
+.landing-page .btn-primary:hover, .landing-page .btn-primary:focus, .landing-page .btn-primary:active { color: #fff; background: #57101c !important; border-color: #57101c !important; box-shadow: 0 0 0 .2rem rgba(114, 19, 34, .18) !important; }
+.landing-page .btn-outline-primary:hover, .landing-page .btn-outline-primary:focus, .landing-page .btn-outline-primary:active { background: #dfceb7 !important; border-color: #c6aa84 !important; color: #503c2f !important; box-shadow: 0 0 0 .2rem rgba(169, 135, 97, .2) !important; }
+
+/* Avenants et documents */
+.paper { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 1.75rem; line-height: 1.8; box-shadow: var(--shadow); }
+.paper .title-line { text-align: center; font-weight: 700; margin-bottom: 1rem; }
+.paper .section-title { font-weight: 700; margin: 1.1rem 0 .5rem; padding-bottom: .25rem; border-bottom: 1px solid var(--line); }
+.article-box { border: 1px solid var(--line); border-radius: 10px; padding: .9rem 1rem; margin-bottom: .75rem; }
+.article-box:last-child { margin-bottom: 0; }
+.article-box .article-title { font-weight: 700; margin-bottom: .3rem; }
+.signature-box { border: 1px solid var(--line); border-radius: 10px; padding: 1rem; height: 100%; background: #faf5ed; }
+.signature-box .role { font-size: .8rem; text-transform: uppercase; color: var(--muted); }
+.signature-box .name { font-weight: 600; }
+.signature-box .hint { font-size: .85rem; color: var(--muted); margin-top: .4rem; }
+.footer-actions { display: flex; justify-content: flex-end; gap: .75rem; }
+@media print {
+    .toolbar, .footer-actions, nav { display: none !important; }
+    body { background: #fff !important; }
+    .paper { box-shadow: none; border: 0; }
+}
+
+@media (max-width: 767.98px) {
+    .container { padding-left: 1rem; padding-right: 1rem; }
+    .navbar .container { align-items: flex-start; flex-wrap: wrap; }
+    .navbar .container > div { display: flex; flex-wrap: wrap; gap: .4rem; }
+    .navbar .container > div .btn { margin: 0 !important; }
+    .card-body { padding: 1.1rem; }
+    .contract-document { padding: 1.15rem; }
+    .d-flex.justify-content-between { gap: .8rem; }
+    .landing-page .container { padding-top: 2rem; padding-bottom: 2rem; }
+    .landing-page .carte-choix { min-height: 260px; padding: 1.7rem !important; }
+    .landing-title { margin-bottom: 2rem !important; }
+}
+
+/* Accents azur et rose, en touches mesurées */
+.btn-outline-info { color: #806142; border-color: #c9b398; }
+.btn-outline-info:hover { color: #fff; background: #806142; border-color: #806142; }
+.landing-page .col-md-5:first-child .carte-choix { background: linear-gradient(145deg, #fffdfa 65%, #fbf0f1); }
+.landing-page .col-md-5:nth-child(2) .carte-choix { background: linear-gradient(145deg, #fffdfa 65%, #f4eadb); }
+
+/* En-têtes d’espace : mêmes dimensions et mêmes liens sur chaque vue */
+.workspace-header { min-height: 74px; padding: .7rem 0; }
+.workspace-header .container { display: flex; align-items: center; justify-content: space-between; gap: 1.25rem; }
+.workspace-header .navbar-brand { display: inline-flex; align-items: baseline; gap: .55rem; flex: 0 0 auto; margin: 0; white-space: nowrap; }
+.workspace-header .navbar-brand span { color: #e1c8a9; font-size: .76rem; font-weight: 500; letter-spacing: .045em; }
+.workspace-nav { display: flex; align-items: center; justify-content: flex-end; gap: .35rem; flex: 0 0 auto; }
+.workspace-nav-item { display: flex; align-items: center; flex: 0 0 auto; }
+.workspace-nav-link { display: inline-flex; align-items: center; min-height: 40px; padding: .45rem .68rem; border-radius: 8px; color: rgba(255,255,255,.82) !important; font-size: .88rem; font-weight: 550; text-decoration: none; white-space: nowrap; transition: background-color .15s ease, color .15s ease; }
+.workspace-nav-link:hover, .workspace-nav-link:focus-visible { color: #fff !important; background: rgba(255,255,255,.12); }
+.workspace-logout { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; margin-left: .35rem; padding: .4rem .72rem; border: 1px solid rgba(255,255,255,.35); border-radius: 8px; color: #fff !important; font-size: .84rem; text-decoration: none; white-space: nowrap; }
+.workspace-logout:hover, .workspace-logout:focus-visible { background: #fff; color: #721322 !important; }
+
+/* Le catalogue privilégie les tons de bois et panna cotta */
+.catalogue-page .carte-maison { border-color: #e3d3bd; }
+.catalogue-page .carte-maison .card-title { color: #604a34; }
+.catalogue-page .carte-maison .fw-bold { color: #765b3d; }
+.catalogue-page .carte-maison .btn-primary,
+.catalogue-page .carte-maison .btn-primary:hover,
+.catalogue-page .carte-maison .btn-primary:focus,
+.catalogue-page .carte-maison .btn-primary:active {
+    color: #fff !important;
+    background: #765b3d !important;
+    border-color: #765b3d !important;
+    box-shadow: 0 0 0 .2rem rgba(118, 91, 61, .16) !important;
+}
+.catalogue-page .carte-maison .btn-primary:hover { background: #604a34 !important; border-color: #604a34 !important; }
+.catalogue-page .carte-maison .btn-primary:visited { color: #fff !important; }
+.catalogue-page .btn-outline-secondary:hover,
+.catalogue-page .btn-outline-secondary:focus,
+.catalogue-page .btn-outline-secondary:active { color: #604a34 !important; background: #eee2d1 !important; border-color: #bda98d !important; }
+
+@media (max-width: 991.98px) {
+    .workspace-header { min-height: 74px; }
+    .workspace-header .container { flex-wrap: wrap; }
+    .workspace-nav { flex-wrap: wrap; justify-content: flex-start; flex: 1 1 100%; }
+}
+@media (max-width: 575.98px) {
+    .workspace-header .navbar-brand { font-size: .95rem; }
+    .workspace-nav { gap: .15rem; }
+    .workspace-nav-link { padding: .4rem .55rem; font-size: .82rem; }
+}

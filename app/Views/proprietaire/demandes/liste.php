@@ -4,20 +4,10 @@
     <meta charset="UTF-8">
     <title>Demandes reçues — Espace Propriétaire</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="<?= base_url('assets/css/app.css') ?>" rel="stylesheet">
 </head>
 <body class="bg-light">
-<nav class="navbar navbar-expand navbar-dark bg-dark mb-4">
-    <div class="container">
-        <span class="navbar-brand">LegalTech Bail — Espace Propriétaire</span>
-        <div class="navbar-nav me-auto">
-            <a href="<?= site_url('proprietaire/tableau-de-bord') ?>" class="nav-link text-white">Tableau de bord</a>
-            <a href="<?= site_url('proprietaire/maisons') ?>" class="nav-link text-white">Mes maisons</a>
-            <a href="<?= site_url('proprietaire/demandes') ?>" class="nav-link text-white">Demandes</a>
-            <a href="<?= site_url('proprietaire/profil') ?>" class="nav-link text-white">Mon profil</a>
-        </div>
-        <a href="<?= site_url('auth/deconnexion') ?>" class="btn btn-outline-light btn-sm">Déconnexion</a>
-    </div>
-</nav>
+<?= view('partials/navigation_proprietaire') ?>
 
 <div class="container">
     <h2 class="mb-3">Demandes de location reçues</h2>
@@ -63,7 +53,7 @@
                         <div class="small text-muted mt-1">Motif : <?= esc($demande['motif_refus']) ?></div>
                     <?php endif; ?>
                 </td>
-                <td style="min-width: 260px;">
+                <td class="table-action-cell">
                     <?php if ($demande['statut'] === 'envoyee'): ?>
                         <form action="<?= site_url('proprietaire/demandes/' . $demande['id_demande'] . '/valider') ?>" method="post" class="d-inline" onsubmit="return confirm('Valider cette demande ?');">
                             <?= csrf_field() ?>

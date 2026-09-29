@@ -5,8 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Contrat <?= esc($numero_contrat) ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="<?= base_url('assets/css/app.css') ?>" rel="stylesheet">
 </head>
 <body class="bg-light">
+<?= view('partials/navigation_proprietaire') ?>
+
 <div class="container py-4">
     <?php if (session('succes')): ?><div class="alert alert-success"><?= esc(session('succes')) ?></div><?php endif; ?>
     <?php if (session('erreur')): ?><div class="alert alert-danger"><?= esc(session('erreur')) ?></div><?php endif; ?>
@@ -17,6 +20,7 @@
             <p class="text-muted mb-0"><?= esc($maison_titre ?? '') ?> | Statut : <?= esc($statut) ?></p>
         </div>
         <div class="d-flex gap-2">
+            <a class="btn btn-outline-primary" href="<?= site_url('proprietaire/avenants') ?>">Mes avenants</a>
             <a class="btn btn-outline-secondary" href="<?= site_url('contrats/' . $id_contrat . '/pdf') ?>">Télécharger le PDF</a>
             <a class="btn btn-outline-secondary" href="<?= site_url('contrats/' . $id_contrat . '/fiche-fiscale') ?>">Télécharger la fiche fiscale</a>
             <a class="btn btn-primary" href="<?= site_url('proprietaire/contrats/' . $id_contrat . '/avenants/ajouter') ?>">Créer un avenant</a>
@@ -32,7 +36,7 @@
     <div class="card mb-4">
         <div class="card-body">
             <h5>Contrat de bail</h5>
-            <div style="white-space: pre-line; font-family: serif; line-height: 1.8; background:#f8f9fa; padding:1.5rem; border-radius:0.5rem;">
+            <div class="contract-document">
                 <?= nl2br(esc($texte_contrat ?? '')) ?>
             </div>
         </div>

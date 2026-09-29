@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Créer un avenant — Contrat <?= esc($contrat['numero_contrat'] ?? '') ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { background: #f5f6f8; }
-    </style>
+    <link href="<?= base_url('assets/css/app.css') ?>" rel="stylesheet">
 </head>
 <body>
-<div class="container py-4" style="max-width: 700px;">
+<?= view('partials/navigation_proprietaire') ?>
+
+<div class="container py-4 page-narrow">
     <?php if (session('erreur')): ?><div class="alert alert-danger"><?= esc(session('erreur')) ?></div><?php endif; ?>
 
     <div class="mb-4">

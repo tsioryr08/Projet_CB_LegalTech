@@ -4,14 +4,10 @@
     <meta charset="UTF-8">
     <title>Historique — <?= esc($maison['titre']) ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="<?= base_url('assets/css/app.css') ?>" rel="stylesheet">
 </head>
 <body class="bg-light">
-<nav class="navbar navbar-dark bg-dark mb-4">
-    <div class="container">
-        <span class="navbar-brand">LegalTech Bail — Espace Propriétaire</span>
-        <a href="<?= site_url('auth/deconnexion') ?>" class="btn btn-outline-light btn-sm">Déconnexion</a>
-    </div>
-</nav>
+<?= view('partials/navigation_proprietaire') ?>
 
 <div class="container">
     <h2>Historique agrégé — <?= esc($maison['titre']) ?></h2>

@@ -40,6 +40,7 @@ $routes->post('client/dossier/(:num)', 'ClientController::enregistrerDossier/$1'
 // $routes->post('client/avenant/(:num)/signer', 'ClientController::signerAvenant/$1', ['filter' => 'auth:client']);
  
 $routes->get('client/profil', 'ClientController::profil', ['filter' => 'auth:client']);
+$routes->get('client/avenants', 'ContratController::indexAvenants', ['filter' => 'auth:client']);
 $routes->post('client/profil', 'ClientController::mettreAJourProfil', ['filter' => 'auth:client']);
  
 // -----------------------------------------------------------------
@@ -47,6 +48,7 @@ $routes->post('client/profil', 'ClientController::mettreAJourProfil', ['filter' 
 // -----------------------------------------------------------------
 $routes->get('proprietaire/tableau-de-bord', 'ProprietaireController::tableauDeBord', ['filter' => 'auth:proprietaire']);
 $routes->get('proprietaire/contrats', 'ContratController::indexProprietaire', ['filter' => 'auth:proprietaire']);
+$routes->get('proprietaire/avenants', 'ContratController::indexAvenants', ['filter' => 'auth:proprietaire']);
 $routes->get('proprietaire/demandes/(:num)/contrat', 'ContratController::formulaireGenerer/$1', ['filter' => 'auth:proprietaire']);
 $routes->post('proprietaire/demandes/(:num)/contrat', 'ContratController::generer/$1', ['filter' => 'auth:proprietaire']);
 $routes->get('proprietaire/contrats/(:num)', 'ContratController::detailProprietaire/$1', ['filter' => 'auth:proprietaire']);

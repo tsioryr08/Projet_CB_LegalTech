@@ -698,6 +698,65 @@ class ContratController extends BaseController
         }
     }
 
+    /** Liste les avenants du compte connecté avec recherche et filtres GET. */
+    public function indexAvenants(): string
+    {
+        $role = (string) session('role');
+        $idUtilisateur = (int) session('id_utilisateur');
+        $recherche = trim((string) $this->request->getGet('q'));
+        $statut = trim((string) $this->request->getGet('statut'));
+        $type = trim((string) $this->request->getGet('type'));
+        $statuts = ['propose', 'signe_bailleur', 'actif', 'refuse', 'annule'];
+        $types = ['modification_loyer', 'prolongation_duree', 'autorisation_sous_location', 'modification_caution', 'ajout_retrait_occupant', 'autre'];
+
+        $builder = db_connect()->table('avenants a')
+            ->select('a.*, c.numero_contrat, c.id_contrat, m.titre AS maison_titre, client.nom AS client_nom, client.prenoms AS client_prenoms, bailleur.nom AS proprietaire_nom, bailleur.prenoms AS proprietaire_prenoms')
+            ->join('contrats c', 'c.id_contrat = a.id_contrat')
+            ->join('maisons m', 'm.id_maison = c.id_maison')
+            ->join('utilisateurs client', 'client.id_utilisateur = c.id_client')
+            ->join('utilisateurs bailleur', 'bailleur.id_utilisateur = c.id_proprietaire');
+
+        if ($role === 'proprietaire') {
+            $builder->where('c.id_proprietaire', $idUtilisateur);
+        } else {
+            $builder->where('c.id_client', $idUtilisateur);
+        }
+
+        if ($recherche !== '') {
+            $builder->groupStart()
+                ->like('c.numero_contrat', $recherche)
+                ->orLike('m.titre', $recherche)
+                ->orLike('a.type_avenant', $recherche)
+                ->orLike('a.champ_modifie', $recherche)
+                ->orLike('client.nom', $recherche)
+                ->orLike('client.prenoms', $recherche)
+                ->orLike('bailleur.nom', $recherche)
+                ->orLike('bailleur.prenoms', $recherche)
+                ->groupEnd();
+        }
+        if (in_array($statut, $statuts, true)) {
+            $builder->where('a.statut', $statut);
+        } else {
+            $statut = '';
+        }
+        if (in_array($type, $types, true)) {
+            $builder->where('a.type_avenant', $type);
+        } else {
+            $type = '';
+        }
+
+        $avenants = $builder->orderBy('a.cree_le', 'DESC')->get()->getResultArray();
+
+        return view('avenants/liste', [
+            'avenants' => $avenants,
+            'recherche' => $recherche,
+            'statutFiltre' => $statut,
+            'typeFiltre' => $type,
+            'urlListe' => site_url($role . '/avenants'),
+            'role' => $role,
+        ]);
+    }
+
     // Affiche la liste / page des avenants pour un contrat (redirige vers la page de détail existante)
     public function avenants(int $idContrat)
     {

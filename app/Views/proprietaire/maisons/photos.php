@@ -4,14 +4,10 @@
     <meta charset="UTF-8">
     <title>Photos — <?= esc($maison['titre']) ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="<?= base_url('assets/css/app.css') ?>" rel="stylesheet">
 </head>
 <body class="bg-light">
-<nav class="navbar navbar-dark bg-dark mb-4">
-    <div class="container">
-        <span class="navbar-brand">LegalTech Bail — Espace Propriétaire</span>
-        <a href="<?= site_url('auth/deconnexion') ?>" class="btn btn-outline-light btn-sm">Déconnexion</a>
-    </div>
-</nav>
+<?= view('partials/navigation_proprietaire') ?>
 
 <div class="container">
     <h2>Photos — <?= esc($maison['titre']) ?></h2>
@@ -29,7 +25,7 @@
             <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" class="form-control" required>
         </div>
         <div class="col-auto">
-            <input type="number" name="ordre" class="form-control" placeholder="Ordre" value="0" style="width: 100px;">
+            <input type="number" name="ordre" class="form-control input-order" placeholder="Ordre" value="0">
         </div>
         <div class="col-auto">
             <button type="submit" class="btn btn-primary">Ajouter</button>

@@ -5,16 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dossier de location — <?= esc($demande['titre']) ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="<?= base_url('assets/css/app.css') ?>" rel="stylesheet">
 </head>
 <body class="bg-light">
-<nav class="navbar navbar-dark bg-primary mb-4">
-    <div class="container">
-        <span class="navbar-brand">LegalTech Bail — Espace Locataire</span>
-        <a href="<?= site_url('client/mes-demandes') ?>" class="btn btn-outline-light btn-sm">Mes demandes</a>
-    </div>
-</nav>
+<?= view('partials/navigation_client') ?>
 
-<div class="container pb-5" style="max-width: 650px;">
+<div class="container pb-5 page-narrow">
     <a href="<?= site_url('client/mes-demandes') ?>" class="text-decoration-none">&larr; Retour à mes demandes</a>
 
     <h2 class="mt-3 mb-1">Dossier de location</h2>

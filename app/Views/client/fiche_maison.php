@@ -5,18 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= esc($maison['titre']) ?> — Fiche détail</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="<?= base_url('assets/css/app.css') ?>" rel="stylesheet">
 </head>
 <body class="bg-light">
-<nav class="navbar navbar-dark bg-primary mb-4">
-    <div class="container">
-        <span class="navbar-brand">LegalTech Bail — Espace Locataire</span>
-        <div>
-            <a href="<?= site_url('client/mes-demandes') ?>" class="btn btn-outline-light btn-sm me-2">Mes demandes</a>
-            <a href="<?= site_url('client/profil') ?>" class="btn btn-outline-light btn-sm me-2">Mon profil</a>
-            <a href="<?= site_url('auth/deconnexion') ?>" class="btn btn-outline-light btn-sm">Déconnexion</a>
-        </div>
-    </div>
-</nav>
+<?= view('partials/navigation_client') ?>
 
 <div class="container pb-5">
     <a href="<?= site_url('client/catalogue') ?>" class="text-decoration-none">&larr; Retour au catalogue</a>
@@ -28,7 +20,7 @@
                     <div class="carousel-inner rounded shadow-sm">
                         <?php foreach ($photos as $i => $photo) : ?>
                             <div class="carousel-item <?= $i === 0 ? 'active' : '' ?>">
-                                <img src="<?= esc($photo['chemin']) ?>" class="d-block w-100" style="height:380px;object-fit:cover;">
+                                <img src="<?= esc($photo['chemin']) ?>" class="d-block w-100 photo-maison">
                             </div>
                         <?php endforeach; ?>
                     </div>
@@ -42,8 +34,7 @@
                     <?php endif; ?>
                 </div>
             <?php else : ?>
-                <div class="bg-secondary-subtle rounded shadow-sm d-flex align-items-center justify-content-center text-muted mb-3"
-                     style="height:380px;">
+                <div class="bg-secondary-subtle rounded shadow-sm d-flex align-items-center justify-content-center text-muted mb-3 photo-maison">
                     Aucune photo disponible pour le moment
                 </div>
             <?php endif; ?>
@@ -54,19 +45,19 @@
                 <div class="card-body">
                     <h3><?= esc($maison['titre']) ?></h3>
                     <p class="text-muted mb-2">
-                        📍 <?= esc($maison['nom_ville']) ?> (<?= esc($maison['region_ville']) ?>)
+                        Ville : <?= esc($maison['nom_ville']) ?> (<?= esc($maison['region_ville']) ?>)
                     </p>
                     <p class="fs-4 fw-bold text-primary">
                         <?= number_format($maison['loyer_mensuel'], 0, ',', ' ') ?> Ar / mois
                     </p>
 
                     <ul class="list-unstyled mb-3">
-                        <li>🏠 Type : <?= esc(ucfirst($maison['type_bien'])) ?></li>
-                        <li>🛏️ Chambres : <?= $maison['nb_chambres'] ?></li>
+                        <li>Type : <?= esc(ucfirst($maison['type_bien'])) ?></li>
+                        <li>Chambres : <?= $maison['nb_chambres'] ?></li>
                         <?php if ($maison['superficie_m2']) : ?>
-                            <li>📐 Superficie : <?= $maison['superficie_m2'] ?> m²</li>
+                            <li>Superficie : <?= $maison['superficie_m2'] ?> m²</li>
                         <?php endif; ?>
-                        <li>📋 Usage autorisé : <?= esc(ucfirst($maison['usage_autorise'])) ?></li>
+                        <li>Usage autorisé : <?= esc(ucfirst($maison['usage_autorise'])) ?></li>
                     </ul>
 
                     <?php if ($maison['description']) : ?>
@@ -78,9 +69,9 @@
                     <h6 class="text-muted">Historique du bien</h6>
                     <?php if ($historique) : ?>
                         <ul class="list-unstyled small text-muted">
-                            <li>👥 Anciens locataires : <?= $historique['nb_anciens_locataires'] ?></li>
+                            <li>Anciens locataires : <?= $historique['nb_anciens_locataires'] ?></li>
                             <li>⚖️ Litiges déclarés : <?= $historique['nb_litiges_declares'] ?></li>
-                            <li>💸 Impayés déclarés : <?= $historique['nb_impayes_declares'] ?></li>
+                            <li>Impayés déclarés : <?= $historique['nb_impayes_declares'] ?></li>
                         </ul>
                     <?php else : ?>
                         <p class="small text-muted">Aucun historique disponible pour ce bien.</p>
