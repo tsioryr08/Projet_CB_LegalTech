@@ -22,7 +22,7 @@
         <div class="d-flex gap-2">
             <a class="btn btn-outline-primary" href="<?= site_url('proprietaire/avenants') ?>">Mes avenants</a>
             <a class="btn btn-outline-secondary" href="<?= site_url('contrats/' . $id_contrat . '/pdf') ?>">Télécharger le PDF</a>
-            <a class="btn btn-outline-secondary" href="<?= site_url('contrats/' . $id_contrat . '/fiche-fiscale') ?>">Télécharger la fiche fiscale</a>
+            <!-- <a class="btn btn-outline-secondary" href="<?= site_url('contrats/' . $id_contrat . '/fiche-fiscale') ?>">Télécharger la fiche fiscale</a> -->
             <a class="btn btn-primary" href="<?= site_url('proprietaire/contrats/' . $id_contrat . '/avenants/ajouter') ?>">Créer un avenant</a>
         </div>
     </div>

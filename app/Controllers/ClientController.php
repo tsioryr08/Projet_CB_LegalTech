@@ -129,9 +129,60 @@ class ClientController extends BaseController
             ->with('succes', 'Votre demande a été envoyée au propriétaire.');
     }
 
+    private function filtreDemandeGet(string $key): string
+    {
+        $value = $this->request->getGet($key);
+
+        return is_string($value) ? trim($value) : '';
+    }
+
+    private function dateDemandeFiltreValide(string $date): bool
+    {
+        if (! preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $parts)) {
+            return false;
+        }
+
+        return checkdate((int) $parts[2], (int) $parts[3], (int) $parts[1]);
+    }
+
     public function mesDemandes(): string
     {
-        $demandes = $this->demandeModel->pourClient(session('id_utilisateur'));
+        $recherche = $this->filtreDemandeGet('q');
+        $statut = $this->filtreDemandeGet('statut');
+        $dateDu = $this->filtreDemandeGet('du');
+        $dateAu = $this->filtreDemandeGet('au');
+        $statutsValides = ['envoyee', 'validee', 'refusee', 'annulee'];
+        $statut = in_array($statut, $statutsValides, true) ? $statut : '';
+        $dateDu = $this->dateDemandeFiltreValide($dateDu) ? $dateDu : '';
+        $dateAu = $this->dateDemandeFiltreValide($dateAu) ? $dateAu : '';
+
+        $builder = $this->demandeModel
+            ->select('demandes.*, maisons.titre, maisons.loyer_mensuel, villes.nom AS nom_ville')
+            ->join('maisons', 'maisons.id_maison = demandes.id_maison')
+            ->join('villes', 'villes.id_ville = maisons.id_ville')
+            ->where('demandes.id_client', (int) session('id_utilisateur'));
+
+        if ($recherche !== '') {
+            $builder->groupStart()
+                ->like('maisons.titre', $recherche)
+                ->orLike('maisons.adresse', $recherche)
+                ->orLike('villes.nom', $recherche)
+                ->orLike('demandes.motif_refus', $recherche)
+                ->orLike('demandes.statut', $recherche)
+                ->groupEnd();
+        }
+        if ($statut !== '') {
+            $builder->where('demandes.statut', $statut);
+        }
+        if ($dateDu !== '') {
+            $builder->where('demandes.date_demande >=', $dateDu . ' 00:00:00');
+        }
+        if ($dateAu !== '') {
+            $builder->where('demandes.date_demande <=', $dateAu . ' 23:59:59');
+        }
+
+        $demandes = $builder->orderBy('demandes.date_demande', 'DESC')->findAll();
+        $filtresActifs = $recherche !== '' || $statut !== '' || $dateDu !== '' || $dateAu !== '';
 
         $contratModel = new ContratModel();
         foreach ($demandes as &$demande) {
@@ -143,7 +194,14 @@ class ClientController extends BaseController
         }
         unset($demande);
 
-        return view('client/mes_demandes', ['demandes' => $demandes]);
+        return view('client/mes_demandes', [
+            'demandes' => $demandes,
+            'recherche' => $recherche,
+            'statutFiltre' => $statut,
+            'dateDu' => $dateDu,
+            'dateAu' => $dateAu,
+            'filtresActifs' => $filtresActifs,
+        ]);
     }
 
     // -----------------------------------------------------------------

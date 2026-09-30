@@ -7,20 +7,71 @@ use App\Models\NotificationModel;
 
 class DemandeController extends BaseController
 {
+    private function filtreDemandeGet(string $key): string
+    {
+        $value = $this->request->getGet($key);
+
+        return is_string($value) ? trim($value) : '';
+    }
+
+    private function dateDemandeFiltreValide(string $date): bool
+    {
+        if (! preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $parts)) {
+            return false;
+        }
+
+        return checkdate((int) $parts[2], (int) $parts[3], (int) $parts[1]);
+    }
+
     public function index(): string
     {
-        $demandeModel = new DemandeModel();
+        $recherche = $this->filtreDemandeGet('q');
+        $statut = $this->filtreDemandeGet('statut');
+        $dateDu = $this->filtreDemandeGet('du');
+        $dateAu = $this->filtreDemandeGet('au');
+        $statutsValides = ['envoyee', 'validee', 'refusee', 'annulee'];
+        $statut = in_array($statut, $statutsValides, true) ? $statut : '';
+        $dateDu = $this->dateDemandeFiltreValide($dateDu) ? $dateDu : '';
+        $dateAu = $this->dateDemandeFiltreValide($dateAu) ? $dateAu : '';
 
-        $demandes = $demandeModel
-            ->select('demandes.*, maisons.titre AS maison_titre, utilisateurs.nom AS client_nom, utilisateurs.prenoms AS client_prenoms, utilisateurs.telephone AS client_telephone')
+        $builder = (new DemandeModel())
+            ->select('demandes.*, maisons.titre AS maison_titre, maisons.adresse AS maison_adresse, utilisateurs.nom AS client_nom, utilisateurs.prenoms AS client_prenoms, utilisateurs.telephone AS client_telephone')
             ->join('maisons', 'maisons.id_maison = demandes.id_maison')
             ->join('utilisateurs', 'utilisateurs.id_utilisateur = demandes.id_client')
-            ->where('maisons.id_proprietaire', (int) session('id_utilisateur'))
-            ->orderBy('demandes.date_demande', 'DESC')
-            ->findAll();
+            ->where('maisons.id_proprietaire', (int) session('id_utilisateur'));
+
+        if ($recherche !== '') {
+            $builder->groupStart()
+                ->like('utilisateurs.nom', $recherche)
+                ->orLike('utilisateurs.prenoms', $recherche)
+                ->orLike('utilisateurs.telephone', $recherche)
+                ->orLike('utilisateurs.email', $recherche)
+                ->orLike('maisons.titre', $recherche)
+                ->orLike('maisons.adresse', $recherche)
+                ->orLike('demandes.motif_refus', $recherche)
+                ->orLike('demandes.statut', $recherche)
+                ->groupEnd();
+        }
+        if ($statut !== '') {
+            $builder->where('demandes.statut', $statut);
+        }
+        if ($dateDu !== '') {
+            $builder->where('demandes.date_demande >=', $dateDu . ' 00:00:00');
+        }
+        if ($dateAu !== '') {
+            $builder->where('demandes.date_demande <=', $dateAu . ' 23:59:59');
+        }
+
+        $demandes = $builder->orderBy('demandes.date_demande', 'DESC')->findAll();
+        $filtresActifs = $recherche !== '' || $statut !== '' || $dateDu !== '' || $dateAu !== '';
 
         return view('proprietaire/demandes/liste', [
             'demandes' => $demandes,
+            'recherche' => $recherche,
+            'statutFiltre' => $statut,
+            'dateDu' => $dateDu,
+            'dateAu' => $dateAu,
+            'filtresActifs' => $filtresActifs,
         ]);
     }
 

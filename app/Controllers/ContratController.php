@@ -18,17 +18,77 @@ class ContratController extends BaseController
 {
     public function indexProprietaire(): string
     {
-        $contrats = (new ContratModel())
-            ->avecRelations()
-            ->select('contrats.*, maisons.titre AS maison_titre, client.nom AS client_nom, client.prenoms AS client_prenoms')
-            ->join('maisons', 'maisons.id_maison = contrats.id_maison')
-            ->join('utilisateurs client', 'client.id_utilisateur = contrats.id_client')
-            ->join('utilisateurs bailleur', 'bailleur.id_utilisateur = contrats.id_proprietaire')
-            ->where('contrats.id_proprietaire', (int) session('id_utilisateur'))
-            ->orderBy('contrats.cree_le', 'DESC')
-            ->findAll();
+        $recherche = $this->getStringFilter('q');
+        $statut = $this->getStringFilter('statut');
+        $type = $this->getStringFilter('type');
+        $dateDu = $this->getStringFilter('du');
+        $dateAu = $this->getStringFilter('au');
 
-        return view('proprietaire/contrats/liste', ['contrats' => $contrats]);
+        $statutsValides = ['genere', 'signe_bailleur', 'actif', 'resilie', 'expire', 'annule'];
+        $typesValides = ['habitation', 'commercial', 'mixte'];
+        $statut = in_array($statut, $statutsValides, true) ? $statut : '';
+        $type = in_array($type, $typesValides, true) ? $type : '';
+        $dateDu = $this->dateFiltreValide($dateDu) ? $dateDu : '';
+        $dateAu = $this->dateFiltreValide($dateAu) ? $dateAu : '';
+
+        $builder = db_connect()->table('contrats c')
+            ->select('c.*, m.titre AS maison_titre, m.adresse AS maison_adresse, client.nom AS client_nom, client.prenoms AS client_prenoms, types.code AS type_code, types.libelle AS type_libelle')
+            ->join('maisons m', 'm.id_maison = c.id_maison')
+            ->join('utilisateurs client', 'client.id_utilisateur = c.id_client')
+            ->join('types_contrat types', 'types.id_type_contrat = c.id_type_contrat')
+            ->where('c.id_proprietaire', (int) session('id_utilisateur'));
+
+        if ($recherche !== '') {
+            $builder->groupStart()
+                ->like('c.numero_contrat', $recherche)
+                ->orLike('client.nom', $recherche)
+                ->orLike('client.prenoms', $recherche)
+                ->orLike('client.email', $recherche)
+                ->orLike('m.titre', $recherche)
+                ->orLike('m.adresse', $recherche)
+                ->orLike('types.code', $recherche)
+                ->orLike('types.libelle', $recherche)
+                ->groupEnd();
+        }
+        if ($statut !== '') {
+            $builder->where('c.statut', $statut);
+        }
+        if ($type !== '') {
+            $builder->where('types.code', $type);
+        }
+        if ($dateDu !== '') {
+            $builder->where('c.cree_le >=', $dateDu . ' 00:00:00');
+        }
+        if ($dateAu !== '') {
+            $builder->where('c.cree_le <=', $dateAu . ' 23:59:59');
+        }
+
+        $contrats = $builder->orderBy('c.cree_le', 'DESC')->get()->getResultArray();
+
+        return view('proprietaire/contrats/liste', [
+            'contrats' => $contrats,
+            'recherche' => $recherche,
+            'statutFiltre' => $statut,
+            'typeFiltre' => $type,
+            'dateDu' => $dateDu,
+            'dateAu' => $dateAu,
+        ]);
+    }
+
+    private function getStringFilter(string $key): string
+    {
+        $value = $this->request->getGet($key);
+
+        return is_string($value) ? trim($value) : '';
+    }
+
+    private function dateFiltreValide(string $date): bool
+    {
+        if (! preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $parts)) {
+            return false;
+        }
+
+        return checkdate((int) $parts[2], (int) $parts[3], (int) $parts[1]);
     }
 
     public function formulaireGenerer(int $idDemande)

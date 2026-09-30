@@ -26,7 +26,7 @@
             <div class="d-flex gap-2">
                 <a class="btn btn-outline-primary" href="<?= site_url('client/avenants') ?>">Mes avenants</a>
                 <a class="btn btn-outline-secondary" href="<?= site_url('contrats/' . $id_contrat . '/pdf') ?>">PDF</a>
-                <a class="btn btn-outline-secondary" href="<?= site_url('contrats/' . $id_contrat . '/fiche-fiscale') ?>">Fiche fiscale</a>
+                <!-- <a class="btn btn-outline-secondary" href="<?= site_url('contrats/' . $id_contrat . '/fiche-fiscale') ?>">Fiche fiscale</a> -->
             </div>
         </div>
     </div>
@@ -45,7 +45,6 @@
             <p class="mb-1"><strong>Statut :</strong> <?= esc($statut) ?></p>
             <p class="mb-1"><strong>Propriétaire :</strong> <?= esc(trim(($proprietaire_prenoms ?? '') . ' ' . ($proprietaire_nom ?? ''))) ?></p>
             <p class="mb-1"><strong>Usage :</strong> <?= esc($type_code ?? '') ?></p>
-            <p class="mb-0"><strong>Hash :</strong> <?= esc($contenu_hash_sha256) ?></p>
         </div>
     </div>
 
