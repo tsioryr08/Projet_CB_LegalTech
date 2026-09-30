@@ -43,9 +43,15 @@
             <?php foreach ($maisons as $maison) : ?>
                 <div class="col-md-4">
                     <div class="card carte-maison shadow-sm h-100">
-                        <div class="placeholder-photo d-flex align-items-center justify-content-center text-muted">
-                            Pas de photo
-                        </div>
+                        <?php if (! empty($maison['photo_principale'])) : ?>
+                            <img src="<?= base_url($maison['photo_principale']) ?>"
+                                 class="card-img-top photo-maison"
+                                 alt="<?= esc($maison['titre']) ?>">
+                        <?php else : ?>
+                            <div class="placeholder-photo d-flex align-items-center justify-content-center text-muted">
+                                Aucune photo
+                            </div>
+                        <?php endif; ?>
                         <div class="card-body">
                             <h5 class="card-title"><?= esc($maison['titre']) ?></h5>
                             <p class="card-text text-muted mb-1">

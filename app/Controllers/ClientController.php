@@ -48,6 +48,13 @@ class ClientController extends BaseController
         $maisons = $this->maisonModel->listerDisponibles($idVille);
         $villes  = $this->villeModel->orderBy('nom', 'ASC')->findAll();
 
+        // Première photo (ordre le plus petit) de chaque maison
+        foreach ($maisons as &$m) {
+            $photos = $this->maisonPhotoModel->pourMaison((int) $m['id_maison']);
+            $m['photo_principale'] = $photos[0]['chemin'] ?? null;
+        }
+        unset($m);
+
         return view('client/catalogue', [
             'nom'              => session('prenoms') ?? session('nom'),
             'maisons'          => $maisons,
@@ -212,7 +219,7 @@ class ClientController extends BaseController
         return ['statut' => $statut, 'messages' => $messages];
     }
 
-    public function formulaireDossier(int $idDemande): string
+    public function formulaireDossier(int $idDemande)
     {
         $idClient = session('id_utilisateur');
         $demande  = $this->demandeModel->trouverPourClient($idDemande, $idClient);

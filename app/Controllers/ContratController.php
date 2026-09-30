@@ -95,6 +95,13 @@ class ContratController extends BaseController
         $montantTotalLoyers = $loyerMensuel * 12;
         $montantDroit = round($montantTotalLoyers * ($taux / 100), 2);
         $contenuHtml = $this->construireContenuHtml($contexte, $typeContrat, $donnees, $montantDroit, $numeroContrat);
+        $contenuHtml = $this->insererSignatures(
+            $contenuHtml,
+            trim(($contexte['proprietaire']['prenoms'] ?? '') . ' ' . ($contexte['proprietaire']['nom'] ?? '')),
+            '',
+            trim(($contexte['client']['prenoms'] ?? '') . ' ' . ($contexte['client']['nom'] ?? '')),
+            ''
+        );
         $hash = hash('sha256', $contenuHtml);
 
         $pdfPath = 'uploads/contrats/' . date('Y') . '/' . $numeroContrat . '.pdf';
@@ -617,12 +624,19 @@ class ContratController extends BaseController
         return $pdf;
     }
 
-    private function insererSignatures(string $texte, string $nomBailleur, string $prenomBailleur, string $nomPreneur, string $prenomPreneur): string
+    /**
+     * Remplace les deux marques "(nom et signature)" par le nom et la signature
+     * du bailleur puis du locataire. Une signature vide donne une ligne à remplir.
+     */
+    private function insererSignatures(string $texte, string $nomBailleur, string $prenomBailleur, string $nomPreneur, string $prenomPreneur, bool $echapper = true): string
     {
-        $esc = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES);
+        $esc = $echapper
+            ? static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES)
+            : static fn (string $v): string => $v;
+        $sig = static fn (string $v): string => $v !== '' ? $v : '____________________';
 
-        $blocBailleur = 'Nom : ' . $esc($nomBailleur) . "\nSignature : " . $esc($prenomBailleur);
-        $blocPreneur = 'Nom : ' . $esc($nomPreneur) . "\nSignature : " . $esc($prenomPreneur);
+        $blocBailleur = 'Nom : ' . $esc($nomBailleur) . "\nSignature : " . $esc($sig($prenomBailleur));
+        $blocPreneur = 'Nom : ' . $esc($nomPreneur) . "\nSignature : " . $esc($sig($prenomPreneur));
         $marque = '(nom et signature)';
 
         if (substr_count($texte, $marque) >= 2) {
@@ -640,6 +654,21 @@ class ContratController extends BaseController
         $parts = preg_split('/[\s,]+/u', trim($prenoms), -1, PREG_SPLIT_NO_EMPTY);
 
         return $parts[0] ?? '';
+    }
+
+    /**
+     * Formate la superficie : 45.50 → "45,5", 100.00 → "100".
+     * Retourne "—" si la surface n'est pas renseignée (évite "0 m²").
+     */
+    private function formaterSuperficie($valeur): string
+    {
+        $v = (float) $valeur;
+
+        if ($v <= 0) {
+            return '—';
+        }
+
+        return rtrim(rtrim(number_format($v, 2, ',', ' '), '0'), ',');
     }
 
     private function relancerSignatureContratSiNecessaire(array $contrat): void
@@ -849,16 +878,8 @@ class ContratController extends BaseController
             ->orderBy('signe_le', 'ASC')
             ->findAll();
 
+        // Les noms et signatures sont déjà insérés par buildTexteContratAffichage().
         $texteContratInitial = $this->buildTexteContratAffichage($contrat);
-        if (! empty($signaturesContrat)) {
-            $texteContratInitial = $this->insererSignatures(
-                $texteContratInitial,
-                $nomBailleur,
-                $this->premierPrenom($contrat['proprietaire_prenoms'] ?? ''),
-                $nomLocataire,
-                $this->premierPrenom($contrat['client_prenoms'] ?? '')
-            );
-        }
         $lignesContratInitial = $this->lignesDepuisTemplate($texteContratInitial);
 
         $modifications = $this->listerModificationsAvenant($avenant);
@@ -1099,6 +1120,7 @@ class ContratController extends BaseController
 
         $valeurs = [
             '{{numero_contrat}}' => $numeroContrat,
+            '{{bailleur_nom}}' => htmlspecialchars($contexte['proprietaire']['nom'] ?? '', ENT_QUOTES),
             '{{bailleur_prenoms}}' => htmlspecialchars($contexte['proprietaire']['prenoms'] ?? '', ENT_QUOTES),
             '{{bailleur_cin}}' => htmlspecialchars($contexte['proprietaire']['cin_numero'] ?? 'N/A', ENT_QUOTES),
             '{{bailleur_adresse}}' => htmlspecialchars($contexte['proprietaire']['adresse'] ?? 'Antananarivo', ENT_QUOTES),
@@ -1114,7 +1136,7 @@ class ContratController extends BaseController
             '{{adresse_maison}}' => htmlspecialchars($contexte['maison']['adresse'] ?? '', ENT_QUOTES),
             '{{ville}}' => htmlspecialchars($contexte['maison']['ville'] ?? 'Antananarivo', ENT_QUOTES),
             '{{nb_chambres}}' => (int) ($contexte['maison']['nb_chambres'] ?? 1),
-            '{{superficie_m2}}' => htmlspecialchars((string) ($contexte['maison']['superficie_m2'] ?? 0), ENT_QUOTES),
+            '{{superficie_m2}}' => $this->formaterSuperficie($contexte['maison']['superficie_m2'] ?? 0),
             '{{titre_foncier}}' => htmlspecialchars($contexte['maison']['titre_foncier_numero'] ?? 'N/A', ENT_QUOTES),
             '{{date_debut}}' => htmlspecialchars($dateDebut, ENT_QUOTES),
             '{{date_fin}}' => htmlspecialchars($dateFin, ENT_QUOTES),
@@ -1124,8 +1146,8 @@ class ContratController extends BaseController
             '{{depot_garantie}}' => number_format((float) ($donnees['depot_garantie'] ?? 0), 0, ',', ' '),
             '{{nb_occupants}}' => (int) ($donnees['nb_occupants'] ?? 1),
             '{{activite_declaree}}' => htmlspecialchars($donnees['activite_declaree'] ?? '', ENT_QUOTES),
-            '{{locataire_nif}}' => htmlspecialchars($contexte['client']['nif'] ?? '', ENT_QUOTES),
-            '{{locataire_stat}}' => htmlspecialchars($contexte['client']['stat'] ?? '', ENT_QUOTES),
+            '{{locataire_nif}}' => htmlspecialchars(($contexte['client']['nif'] ?? '') ?: 'N/A', ENT_QUOTES),
+            '{{locataire_stat}}' => htmlspecialchars(($contexte['client']['stat'] ?? '') ?: 'N/A', ENT_QUOTES),
             '{{duree_bail}}' => htmlspecialchars('1 an', ENT_QUOTES),
             '{{pas_de_porte}}' => '0',
             '{{montant_droit_enregistrement}}' => number_format($montantDroit, 0, ',', ' '),
@@ -1228,7 +1250,7 @@ Loi n°2015-037 du 8 décembre 2015 — Contrat n° {{numero_contrat}}
 
 Entre les soussignés :
 {{bailleur_nom}} {{bailleur_prenoms}}, titulaire de la CIN n° {{bailleur_cin}}, demeurant à {{bailleur_adresse}}, ci-après dénommé « le Propriétaire », D'une part,
-Et {{locataire_nom}} {{locataire_prenoms}}, titulaire de la CIN n° {{locataire_cin}}, exerçant l'activité de {{activite_declaree}}, immatriculé(e) sous le NIF n° {{locataire_nif}} et le STAT n° {{locataire_stat}}, ci-après dénommé « le Locataire », D'autre part,
+// Et {{locataire_nom}} {{locataire_prenoms}}, titulaire de la CIN n° {{locataire_cin}}, immatriculé(e) sous le NIF n° {{locataire_nif}} et le STAT n° {{locataire_stat}}, ci-après dénommé « le Locataire », D'autre part,
 
 Il a été convenu et arrêté ce qui suit :
 
@@ -1320,7 +1342,7 @@ Document généré automatiquement par le module LegalTech — conforme à la Lo
 
 Entre les soussignés :
 {{bailleur_nom}} {{bailleur_prenoms}}, propriétaire du bien désigné ci-après, domicilié(e) à {{bailleur_adresse}}, ci-après dénommé « le Propriétaire », D'une part,
-Et {{locataire_nom}} {{locataire_prenoms}}, titulaire de la CIN n° {{locataire_cin}}, exerçant la profession de {{locataire_profession}}, ci-après dénommé « le Locataire », D'autre part,
+Et {{locataire_nom}} {{locataire_prenoms}}, titulaire de la CIN n° {{locataire_cin}}, immatriculé(e) sous le NIF n° {{locataire_nif}} et le STAT n° {{locataire_stat}}, ci-après dénommé « le Locataire », D'autre part,
 
 Il a été convenu et arrêté ce qui suit :
 
@@ -1367,16 +1389,19 @@ Conformément à l'article 29 de la Loi n°2015-037, le Locataire ayant exploit�
 Article 10 — Préavis et résiliation
 En cas de congé, la notification doit être faite par écrit avec un préavis de six (6) mois.
 
-Article 11 — Clause résolutoire
+Article 11 — Condition suspensive d'immatriculation
+Si, à la date de signature, le Locataire n'a pas encore communiqué son NIF et son STAT, le présent bail est conclu sous condition suspensive de leur production dans un délai de trente (30) jours. À défaut, le bail est réputé caduc sans indemnité.
+
+Article 12 — Clause résolutoire
 À défaut de paiement à son échéance d'un seul terme de loyer, ou en cas d'inexécution des clauses et conditions du présent contrat, celui-ci sera résilié de plein droit, un mois après une mise en demeure restée sans effet.
 
-Article 12 — Enregistrement fiscal
+Article 13 — Enregistrement fiscal
 Conformément à l'article 02.01.14 du Code Général des Impôts, le présent contrat doit être enregistré auprès du Centre fiscal compétent dans un délai de deux (2) mois à compter de sa signature. En application de l'article 02.02.12 du CGI, le droit d'enregistrement applicable est fixé à 2 % du montant total des loyers, soit {{montant_droit_enregistrement}} Ariary. Une fiche fiscale est annexée au présent contrat.
 
-Article 13 — Élection de domicile et juridiction compétente
+Article 14 — Élection de domicile et juridiction compétente
 Pour l'exécution des présentes, les parties font élection de domicile à leurs adresses respectives ci-dessus indiquées. Tout litige relatif à l'interprétation ou à l'exécution du présent contrat relève de la compétence des juridictions malgaches.
 
-Article 14 — LOI APPLICABLE - JURIDICTION COMPÉTENTE
+Article 15 — LOI APPLICABLE - JURIDICTION COMPÉTENTE
 Pour tout ce qui n'est pas prévu par le présent contrat, les parties se réfèrent aux dispositions légales applicables en matière de bail aux usages locaux.
 Le présent contrat est soumis tant pour sa validité, son interprétation, que pour son exécution, aux lois et règlements en vigueur à Madagascar.
 Les parties s'engagent à agir de bonne foi dans le respect des droits et obligations réciproques définis aux termes du présent contrat. Elles s'engagent à adopter toutes les mesures raisonnables pour assurer la réalisation du présent Contrat.
@@ -1384,6 +1409,11 @@ Tout litige entre les parties sera présenté au Tribunal de Commerce compétent
 EN FOI DE QUOI, les parties ont conclu le présent contrat, qui prend effet dès sa signature.
 
 Fait à {{lieu_signature}}, le {{date_signature}}, en deux exemplaires originaux.
+
+Le Propriétaire
+(nom et signature)
+Le Locataire
+(nom et signature)
 TXT;
 
         return $base[$code] ?? $base['habitation'];
@@ -1460,7 +1490,7 @@ TXT;
         }
 
         $contrat = (new ContratModel())->avecRelations()
-            ->select('contrats.*, maisons.titre AS maison_titre, maisons.adresse AS maison_adresse, maisons.usage_autorise, maisons.loyer_mensuel AS loyer_maison, maisons.valeur_immeuble, maisons.date_construction, maisons.nb_chambres, maisons.id_proprietaire AS maison_proprietaire, client.nom AS client_nom, client.prenoms AS client_prenoms, client.cin_numero AS client_cin_numero, client.cin_date_delivrance AS client_cin_date_delivrance, client.cin_lieu_delivrance AS client_cin_lieu_delivrance, client.date_naissance AS client_date_naissance, client.profession AS client_profession, client.nif AS client_nif, client.stat AS client_stat, bailleur.nom AS proprietaire_nom, bailleur.prenoms AS proprietaire_prenoms, bailleur.cin_numero AS proprietaire_cin_numero, bailleur.cin_date_delivrance AS proprietaire_cin_date_delivrance, bailleur.cin_lieu_delivrance AS proprietaire_cin_lieu_delivrance, bailleur.date_naissance AS proprietaire_date_naissance, bailleur.profession AS proprietaire_profession, bailleur.nif AS proprietaire_nif, bailleur.stat AS proprietaire_stat')
+            ->select('contrats.*, maisons.titre AS maison_titre, maisons.adresse AS maison_adresse, maisons.superficie_m2 AS maison_superficie_m2, maisons.type_bien AS maison_type_bien, maisons.titre_foncier_numero AS maison_titre_foncier, maisons.usage_autorise, maisons.loyer_mensuel AS loyer_maison, maisons.valeur_immeuble, maisons.date_construction, maisons.nb_chambres, maisons.id_proprietaire AS maison_proprietaire, client.nom AS client_nom, client.prenoms AS client_prenoms, client.cin_numero AS client_cin_numero, client.cin_date_delivrance AS client_cin_date_delivrance, client.cin_lieu_delivrance AS client_cin_lieu_delivrance, client.date_naissance AS client_date_naissance, client.profession AS client_profession, client.nif AS client_nif, client.stat AS client_stat, bailleur.nom AS proprietaire_nom, bailleur.prenoms AS proprietaire_prenoms, bailleur.cin_numero AS proprietaire_cin_numero, bailleur.cin_date_delivrance AS proprietaire_cin_date_delivrance, bailleur.cin_lieu_delivrance AS proprietaire_cin_lieu_delivrance, bailleur.date_naissance AS proprietaire_date_naissance, bailleur.profession AS proprietaire_profession, bailleur.nif AS proprietaire_nif, bailleur.stat AS proprietaire_stat')
             ->join('maisons', 'maisons.id_maison = contrats.id_maison')
             ->join('utilisateurs client', 'client.id_utilisateur = contrats.id_client')
             ->join('utilisateurs bailleur', 'bailleur.id_utilisateur = contrats.id_proprietaire')
@@ -1517,11 +1547,12 @@ TXT;
             '{locataire_cin_date}' => $contrat['client_cin_date_delivrance'] ?? ($contrat['cin_date_delivrance'] ?? '—'),
             '{locataire_cin_lieu}' => $contrat['client_cin_lieu_delivrance'] ?? ($contrat['cin_lieu_delivrance'] ?? 'Antananarivo'),
             '{locataire_profession}' => $contrat['client_profession'] ?? ($contrat['profession'] ?? ($contrat['activite_declaree'] ?? '—')),
-            '{type_bien}' => $contrat['type_bien'] ?? ($contrat['usage_autorise'] ?? 'Appartement'),
+            '{type_bien}' => $contrat['maison_type_bien'] ?? ($contrat['type_bien'] ?? 'Appartement'),
             '{titre_maison}' => $titreMaison,
             '{adresse_maison}' => $adresseMaison,
             '{nb_chambres}' => $contrat['nb_chambres'] ?? 1,
-            '{superficie_m2}' => $contrat['superficie_m2'] ?? 0,
+            '{superficie_m2}' => $this->formaterSuperficie($contrat['maison_superficie_m2'] ?? 0),
+            '{titre_foncier}' => $contrat['maison_titre_foncier'] ?? 'N/A',
             '{date_debut}' => $dateDebut,
             '{date_fin}' => $dateFin,
             '{loyer_mensuel}' => number_format((float) ($contrat['loyer_maison'] ?? ($contrat['loyer_mensuel'] ?? 0)), 0, ',', ' '),
@@ -1531,8 +1562,8 @@ TXT;
             '{date_signature}' => $dateSignature,
             '{nb_occupants}' => $contrat['nb_occupants'] ?? 1,
             '{activite_declaree}' => $contrat['activite_declaree'] ?? '—',
-            '{locataire_nif}' => $contrat['client_nif'] ?? ($contrat['nif'] ?? 'N/A'),
-            '{locataire_stat}' => $contrat['client_stat'] ?? ($contrat['stat'] ?? 'N/A'),
+            '{locataire_nif}' => ($contrat['client_nif'] ?? '') ?: 'N/A',
+            '{locataire_stat}' => ($contrat['client_stat'] ?? '') ?: 'N/A',
             '{duree_bail}' => '1 an',
             '{pas_de_porte}' => '0',
             '{bailleur_nom}' => $contrat['proprietaire_nom'] ?? 'Bailleur',
@@ -1546,7 +1577,18 @@ TXT;
         // Source unique : les mêmes modèles que pour le PDF généré.
         $modele = str_replace(['{{', '}}'], ['{', '}'], $this->templateContratSelonType($typeCode));
 
-        return strtr($modele, $replace);
+        $texte = strtr($modele, $replace);
+
+        $roles = array_column($contrat['signatures'] ?? [], 'role_signataire');
+
+        return $this->insererSignatures(
+            $texte,
+            $nomBailleur ?: 'Bailleur',
+            in_array('bailleur', $roles, true) ? $this->premierPrenom($contrat['proprietaire_prenoms'] ?? '') : '',
+            $nomLocataire ?: 'Locataire',
+            in_array('locataire', $roles, true) ? $this->premierPrenom($contrat['client_prenoms'] ?? '') : '',
+            false
+        );
     }
 
     private function planifierAlerteEcheance(int $idProprietaire, int $idContrat, ?string $dateFin): void

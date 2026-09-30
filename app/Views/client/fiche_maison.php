@@ -20,7 +20,9 @@
                     <div class="carousel-inner rounded shadow-sm">
                         <?php foreach ($photos as $i => $photo) : ?>
                             <div class="carousel-item <?= $i === 0 ? 'active' : '' ?>">
-                                <img src="<?= esc($photo['chemin']) ?>" class="d-block w-100 photo-maison">
+                                <img src="<?= base_url($photo['chemin']) ?>"
+                                     class="d-block w-100 photo-maison"
+                                     alt="<?= esc($maison['titre']) ?>">
                             </div>
                         <?php endforeach; ?>
                     </div>
